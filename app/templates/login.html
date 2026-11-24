@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ingresar - StockBarrio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="/static/js/ui.js" defer></script>
+  <style>
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      position: relative;
+    }
+    .login-theme-btn {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: var(--shadow-md);
+    }
+    .login-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .login-brand h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .login-brand p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-soft);
+      margin-bottom: 10px;
+      display: block;
+    }
+    .user-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .user-option {
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      font-family: inherit;
+      color: var(--text);
+    }
+    .user-option:hover {
+      border-color: var(--border-strong);
+      background: var(--surface-subtle);
+    }
+    .user-option.selected {
+      border-color: var(--brand);
+      background: var(--brand-soft);
+    }
+    .user-option-name {
+      font-weight: 600;
+      font-size: 14px;
+      display: block;
+    }
+    .user-option-role {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: block;
+    }
+    .pin-dots {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      margin: 10px 0 18px;
+    }
+    .pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--border-strong);
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    .pin-dot.filled {
+      background: var(--brand);
+      border-color: var(--brand);
+    }
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .key-btn {
+      height: 52px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-subtle);
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s ease, transform 0.08s ease;
+    }
+    .key-btn:hover { background: var(--border); }
+    .key-btn:active { transform: scale(0.97); }
+    .key-btn.action {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .key-btn.submit {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #ffffff;
+      font-size: 14px;
+    }
+    .key-btn.submit:hover { background: var(--brand-hover); }
+  </style>
+</head>
+<body>
+  <main class="login-page">
+    <button type="button" id="theme-toggle" class="btn-icon login-theme-btn" title="Cambiar tema">
+      <span data-icon="moon"><i data-lucide="moon"></i></span>
+      <span data-icon="sun" style="display:none;"><i data-lucide="sun"></i></span>
+    </button>
+
+    <section class="login-card">
+      <div class="login-brand">
+        <span class="brand-icon" style="width:42px; height:42px; font-size:16px;">SB</span>
+        <div>
+          <h1>StockBarrio</h1>
+          <p>{{ almacen.nombre if almacen else 'Control de almacen y POS' }}</p>
+        </div>
+      </div>
+
+      <span class="section-label">1. Selecciona tu usuario</span>
+      <div class="user-list" id="user-list"></div>
+
+      <span class="section-label">2. Ingresa tu PIN de 4 digitos</span>
+      <div class="pin-dots" id="pin-dots">
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+      </div>
+
+      <div class="keypad" id="keypad">
+        <button type="button" class="key-btn" data-key="1">1</button>
+        <button type="button" class="key-btn" data-key="2">2</button>
+        <button type="button" class="key-btn" data-key="3">3</button>
+        <button type="button" class="key-btn" data-key="4">4</button>
+        <button type="button" class="key-btn" data-key="5">5</button>
+        <button type="button" class="key-btn" data-key="6">6</button>
+        <button type="button" class="key-btn" data-key="7">7</button>
+        <button type="button" class="key-btn" data-key="8">8</button>
+        <button type="button" class="key-btn" data-key="9">9</button>
+        <button type="button" class="key-btn action" data-action="clear">Limpiar</button>
+        <button type="button" class="key-btn" data-key="0">0</button>
+        <button type="button" class="key-btn action" data-action="back">
+          <i data-lucide="delete"></i>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const userListEl = document.getElementById("user-list");
+      const dots = Array.from(document.querySelectorAll(".pin-dot"));
+      let selectedUserId = null;
+      let pin = "";
+      let sending = false;
+
+      function renderDots() {
+        dots.forEach((dot, idx) => {
+          dot.classList.toggle("filled", idx < pin.length);
+        });
+      }
+
+      async function submitLogin() {
+        if (sending || !selectedUserId || pin.length !== 4) return;
+        sending = true;
+        try {
+          await window.StockBarrio.apiFetch("/api/v1/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ usuario_id: selectedUserId, pin }),
+          });
+          window.location.href = "/";
+        } catch (err) {
+          window.StockBarrio.showToast(err.message, "error");
+          pin = "";
+          renderDots();
+        } finally {
+          sending = false;
+        }
+      }
+
+      function addDigit(d) {
+        if (!selectedUserId) {
+          window.StockBarrio.showToast("Selecciona primero un usuario", "warn");
+          return;
+        }
+        if (pin.length >= 4) return;
+        pin += d;
+        renderDots();
+        if (pin.length === 4) {
+          submitLogin();
+        }
+      }
+
+      try {
+        const usuarios = await window.StockBarrio.apiFetch("/api/v1/auth/usuarios");
+        userListEl.innerHTML = "";
+        usuarios.forEach((u, index) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "user-option" + (index === 0 ? " selected" : "");
+          btn.innerHTML = `<span class="user-option-name">${u.nombre}</span><span class="user-option-role">${u.rol}</span>`;
+          btn.addEventListener("click", () => {
+            document.querySelectorAll(".user-option").forEach((b) => b.classList.remove("selected"));
+            btn.classList.add("selected");
+            selectedUserId = u.id;
+            pin = "";
+            renderDots();
+          });
+          userListEl.appendChild(btn);
+          if (index === 0) selectedUserId = u.id;
+        });
+      } catch (err) {
+        window.StockBarrio.showToast("No se pudieron cargar los usuarios", "error");
+      }
+
+      document.getElementById("keypad").addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        if (btn.dataset.key !== undefined) addDigit(btn.dataset.key);
+        if (btn.dataset.action === "clear") { pin = ""; renderDots(); }
+        if (btn.dataset.action === "back") { pin = pin.slice(0, -1); renderDots(); }
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key >= "0" && e.key <= "9") addDigit(e.key);
+        if (e.key === "Backspace") { pin = pin.slice(0, -1); renderDots(); }
+        if (e.key === "Escape") { pin = ""; renderDots(); }
+      });
+    });
+  </script>
+</body>
+</html>

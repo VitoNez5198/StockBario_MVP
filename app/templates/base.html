@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}StockBarrio{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="/static/js/ui.js" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <a href="/" class="brand-mark">
+          <span class="brand-icon">SB</span>
+          <span class="brand-text">StockBarrio</span>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <span class="nav-section-title">Operacion</span>
+        <a href="/" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+          <i data-lucide="layout-dashboard"></i>
+          <span class="nav-label">Resumen</span>
+        </a>
+        <a href="/pos" class="nav-link {% if active_page == 'pos' %}active{% endif %}">
+          <i data-lucide="shopping-cart"></i>
+          <span class="nav-label">Punto de Venta</span>
+        </a>
+        <a href="/inventario" class="nav-link {% if active_page == 'inventario' %}active{% endif %}">
+          <i data-lucide="package"></i>
+          <span class="nav-label">Inventario</span>
+        </a>
+        <a href="/fiados" class="nav-link {% if active_page == 'fiados' %}active{% endif %}">
+          <i data-lucide="book-open"></i>
+          <span class="nav-label">Libreta Fiados</span>
+        </a>
+        <a href="/compras" class="nav-link {% if active_page == 'compras' %}active{% endif %}">
+          <i data-lucide="clipboard-list"></i>
+          <span class="nav-label">Compras</span>
+        </a>
+        <a href="/caja" class="nav-link {% if active_page == 'caja' %}active{% endif %}">
+          <i data-lucide="wallet"></i>
+          <span class="nav-label">Caja Z</span>
+        </a>
+
+        {% if usuario and usuario.rol == 'ADMIN' %}
+        <span class="nav-section-title">Administracion</span>
+        <a href="/reportes" class="nav-link {% if active_page == 'reportes' %}active{% endif %}">
+          <i data-lucide="bar-chart-3"></i>
+          <span class="nav-label">Reportes</span>
+        </a>
+        <a href="/usuarios" class="nav-link {% if active_page == 'usuarios' %}active{% endif %}">
+          <i data-lucide="users"></i>
+          <span class="nav-label">Usuarios</span>
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="sidebar-footer">
+        <button type="button" id="logout-btn" class="nav-link" style="width:100%; background:none; border:none; cursor:pointer;">
+          <i data-lucide="log-out"></i>
+          <span class="nav-label">Cambiar turno</span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" id="sidebar-toggle" class="btn-icon" title="Mostrar u ocultar menu">
+            <i data-lucide="panel-left"></i>
+          </button>
+          <span class="topbar-store">{{ almacen.nombre if almacen else 'StockBarrio' }}</span>
+          <span class="badge badge-neutral">Caja sin abrir</span>
+        </div>
+
+        <div class="topbar-right">
+          <button type="button" id="theme-toggle" class="btn-icon" title="Cambiar tema">
+            <span data-icon="moon"><i data-lucide="moon"></i></span>
+            <span data-icon="sun" style="display:none;"><i data-lucide="sun"></i></span>
+          </button>
+
+          {% if usuario %}
+          <div class="user-chip">
+            <span class="user-avatar">{{ usuario.nombre[:2]|upper }}</span>
+            <span>{{ usuario.nombre }}</span>
+            <span class="badge {% if usuario.rol == 'ADMIN' %}badge-ok{% else %}badge-info{% endif %}">
+              {{ usuario.rol }}
+            </span>
+          </div>
+          {% endif %}
+        </div>
+      </header>
+
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

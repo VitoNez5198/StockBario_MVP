@@ -1,15 +1,19 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.auth import router as auth_router
 from app.core.config import get_settings
 from app.core.database import check_database_connection
 from app.core.errors import register_error_handlers
 from app.core.init_db import init_db
+from app.web.routes import router as web_router
 
 settings = get_settings()
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
@@ -26,6 +30,7 @@ app = FastAPI(
 )
 
 register_error_handlers(app)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(auth_router)
 
 
@@ -44,11 +49,4 @@ def healthcheck():
     )
 
 
-@app.get("/", tags=["Sistema"])
-def root():
-    return {
-        "app": settings.app_name,
-        "message": "StockBarrio API operativa",
-        "docs": "/docs",
-        "health": "/api/v1/health",
-    }
+app.include_router(web_router)

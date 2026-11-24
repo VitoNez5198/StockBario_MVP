@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Resumen - StockBarrio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Resumen del dia</h1>
+    <p class="page-subtitle">Bienvenido, {{ usuario.nombre }}. Estado general de {{ almacen.nombre }}.</p>
+  </div>
+  <a href="/pos" class="btn btn-primary">
+    <i data-lucide="shopping-cart"></i>
+    Ir al Punto de Venta
+  </a>
+</div>
+
+<section class="grid-4" style="margin-bottom: 22px;">
+  <article class="card">
+    <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;">Ventas de hoy</span>
+    <div class="tabular" style="font-size:26px; font-weight:700; margin-top:6px;">$ 0</div>
+    <span class="badge badge-neutral" style="margin-top:10px;">Sin ventas registradas</span>
+  </article>
+
+  <article class="card">
+    <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;">Por vencer (7 dias)</span>
+    <div class="tabular" style="font-size:26px; font-weight:700; margin-top:6px;">0</div>
+    <span class="badge badge-ok" style="margin-top:10px;">Sin alertas activas</span>
+  </article>
+
+  <article class="card">
+    <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;">Bajo stock minimo</span>
+    <div class="tabular" style="font-size:26px; font-weight:700; margin-top:6px;">0</div>
+    <span class="badge badge-ok" style="margin-top:10px;">Stock saludable</span>
+  </article>
+
+  <article class="card">
+    <span style="font-size:12.5px; color:var(--text-muted); font-weight:500;">Fiados por cobrar</span>
+    <div class="tabular" style="font-size:26px; font-weight:700; margin-top:6px;">$ 0</div>
+    <span class="badge badge-info" style="margin-top:10px;">0 cuentas con saldo</span>
+  </article>
+</section>
+
+<section class="card">
+  <h2 style="font-size:16px; font-weight:600; margin-bottom:6px;">Modulos del sistema</h2>
+  <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:16px;">
+    Base visual y autenticacion activas. Los modulos operativos se conectaran en el Sprint 2.
+  </p>
+  <div class="grid-3">
+    <div class="card" style="padding:16px; background:var(--surface-subtle); box-shadow:none;">
+      <strong style="display:block; margin-bottom:4px;">Punto de Venta (POS)</strong>
+      <span style="font-size:13px; color:var(--text-muted);">Cobro rapido en menos de 10 segundos y lector USB.</span>
+    </div>
+    <div class="card" style="padding:16px; background:var(--surface-subtle); box-shadow:none;">
+      <strong style="display:block; margin-bottom:4px;">Inventario y Semaforo</strong>
+      <span style="font-size:13px; color:var(--text-muted);">Alertas tempranas 30/15/7 dias y bloqueo de vencidos.</span>
+    </div>
+    <div class="card" style="padding:16px; background:var(--surface-subtle); box-shadow:none;">
+      <strong style="display:block; margin-bottom:4px;">Fiados y Compras</strong>
+      <span style="font-size:13px; color:var(--text-muted);">Cuentas de vecinos con cupo y pedidos por WhatsApp.</span>
+    </div>
+  </div>
+</section>
+{% endblock %}
