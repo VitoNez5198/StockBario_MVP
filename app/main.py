@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.auth import router as auth_router
 from app.core.config import get_settings
 from app.core.database import check_database_connection
+from app.core.errors import register_error_handlers
 from app.core.init_db import init_db
 
 settings = get_settings()
@@ -24,6 +25,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+register_error_handlers(app)
 app.include_router(auth_router)
 
 
