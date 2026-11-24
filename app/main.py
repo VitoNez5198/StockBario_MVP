@@ -1,17 +1,26 @@
-"""Punto de entrada principal de StockBarrio MVP (FastAPI)."""
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.core.database import check_database_connection
+from app.core.init_db import init_db
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title=f"{settings.app_name} API",
-    description="Plataforma web SaaS de inventario y punto de venta para almacenes de barrio.",
+    description="Plataforma web de inventario y punto de venta para almacenes de barrio.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -34,7 +43,7 @@ def healthcheck():
 def root():
     return {
         "app": settings.app_name,
-        "message": "StockBarrio MVP inicializado. Próximo paso: módulos del Sprint 1.",
+        "message": "StockBarrio API operativa",
         "docs": "/docs",
         "health": "/api/v1/health",
     }
