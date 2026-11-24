@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from app.api.v1.auth import router as auth_router
 from app.core.config import get_settings
 from app.core.database import check_database_connection
 from app.core.init_db import init_db
@@ -22,6 +23,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(auth_router)
 
 
 @app.get("/api/v1/health", tags=["Sistema"])
