@@ -47,6 +47,23 @@ class CrearUsuarioRequest(BaseModel):
         return limpio
 
 
+class ActualizarUsuarioRequest(BaseModel):
+    nombre: str | None = Field(default=None, min_length=2, max_length=100)
+    rol: RolUsuario | None = None
+    pin: str | None = Field(default=None, min_length=4, max_length=4)
+    activo: bool | None = None
+
+    @field_validator("pin")
+    @classmethod
+    def validar_pin_opcional(cls, valor: str | None) -> str | None:
+        if valor is None:
+            return None
+        limpio = valor.strip()
+        if not (limpio.isdigit() and len(limpio) == 4):
+            raise ValueError("El PIN debe tener 4 digitos numericos")
+        return limpio
+
+
 class SesionResponse(BaseModel):
     mensaje: str
     usuario: UsuarioPublico

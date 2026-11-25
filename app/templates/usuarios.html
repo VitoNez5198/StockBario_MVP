@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Usuarios - StockBarrio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Usuarios del almacen</h1>
+    <p class="page-subtitle">Administra cajeros, roles y PIN de acceso para {{ almacen.nombre }}.</p>
+  </div>
+  <button type="button" id="btn-nuevo-usuario" class="btn btn-primary">
+    <i data-lucide="user-plus"></i>
+    Nuevo usuario
+  </button>
+</div>
+
+<section class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Usuario</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th style="width: 210px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="usuarios-tbody">
+        <tr>
+          <td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">
+            Cargando usuarios...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="modal-backdrop" id="modal-usuario">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-titulo">Nuevo usuario</h2>
+      <button type="button" class="btn-icon" id="modal-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-usuario">
+      <input type="hidden" id="u-id">
+
+      <div class="form-group">
+        <label class="form-label" for="u-nombre">Nombre completo</label>
+        <input class="form-input" id="u-nombre" type="text" required minlength="2" maxlength="100" placeholder="Ej: Maria Gonzalez">
+      </div>
+
+      <div class="form-group" id="grupo-username">
+        <label class="form-label" for="u-username">Nombre de usuario</label>
+        <input class="form-input" id="u-username" type="text" required minlength="2" maxlength="50" placeholder="Ej: maria">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="u-rol">Rol</label>
+        <select class="form-select" id="u-rol">
+          <option value="CAJERO">CAJERO (POS, inventario, fiados, caja y anulaciones)</option>
+          <option value="ADMIN">ADMIN (acceso completo)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="u-pin" id="label-pin">PIN de 4 digitos</label>
+        <input class="form-input tabular" id="u-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="Ej: 4321">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-guardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const CURRENT_USER_ID = {{ usuario.id }};
+    const tbody = document.getElementById("usuarios-tbody");
+    const modal = document.getElementById("modal-usuario");
+    const form = document.getElementById("form-usuario");
+    const modalTitulo = document.getElementById("modal-titulo");
+    const grupoUsername = document.getElementById("grupo-username");
+    const labelPin = document.getElementById("label-pin");
+
+    const fId = document.getElementById("u-id");
+    const fNombre = document.getElementById("u-nombre");
+    const fUsername = document.getElementById("u-username");
+    const fRol = document.getElementById("u-rol");
+    const fPin = document.getElementById("u-pin");
+
+    let usuariosCache = [];
+
+    function abrirModalNuevo() {
+      fId.value = "";
+      fNombre.value = "";
+      fUsername.value = "";
+      fRol.value = "CAJERO";
+      fPin.value = "";
+      fUsername.required = true;
+      fPin.required = true;
+      grupoUsername.style.display = "block";
+      labelPin.textContent = "PIN de 4 digitos";
+      modalTitulo.textContent = "Nuevo usuario";
+      modal.classList.add("open");
+      fNombre.focus();
+    }
+
+    function abrirModalEditar(u) {
+      fId.value = u.id;
+      fNombre.value = u.nombre;
+      fUsername.value = u.username;
+      fRol.value = u.rol;
+      fPin.value = "";
+      fUsername.required = false;
+      fPin.required = false;
+      grupoUsername.style.display = "none";
+      labelPin.textContent = "Nuevo PIN (dejar vacio para mantener)";
+      modalTitulo.textContent = `Editar a ${u.nombre}`;
+      modal.classList.add("open");
+      fNombre.focus();
+    }
+
+    function cerrarModal() {
+      modal.classList.remove("open");
+    }
+
+    function renderTabla() {
+      if (!usuariosCache.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">Sin usuarios registrados.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = usuariosCache.map((u) => {
+        const badgeRol = u.rol === "ADMIN" ? "badge-ok" : "badge-info";
+        const badgeEstado = u.activo ? "badge-ok" : "badge-neutral";
+        const textoEstado = u.activo ? "Activo" : "Inactivo";
+        const esPropio = u.id === CURRENT_USER_ID;
+        const toggleLabel = u.activo ? "Desactivar" : "Activar";
+
+        return `
+          <tr>
+            <td><strong>${u.nombre}</strong></td>
+            <td style="color:var(--text-muted);">${u.username}</td>
+            <td><span class="badge ${badgeRol}">${u.rol}</span></td>
+            <td><span class="badge ${badgeEstado}">${textoEstado}</span></td>
+            <td>
+              <div class="table-actions">
+                <button type="button" class="btn btn-secondary" data-edit="${u.id}" style="padding:5px 10px; font-size:12.5px;">
+                  Editar / PIN
+                </button>
+                ${esPropio ? "" : `
+                  <button type="button" class="btn btn-ghost" data-toggle="${u.id}" style="padding:5px 10px; font-size:12.5px;">
+                    ${toggleLabel}
+                  </button>
+                `}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function cargarUsuarios() {
+      try {
+        usuariosCache = await window.StockBarrio.apiFetch("/api/v1/auth/usuarios/admin");
+        renderTabla();
+      } catch (err) {
+        window.StockBarrio.showToast(err.message, "error");
+      }
+    }
+
+    tbody.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest("[data-edit]");
+      if (editBtn) {
+        const u = usuariosCache.find((item) => item.id === Number(editBtn.dataset.edit));
+        if (u) abrirModalEditar(u);
+        return;
+      }
+      const toggleBtn = e.target.closest("[data-toggle]");
+      if (toggleBtn) {
+        const u = usuariosCache.find((item) => item.id === Number(toggleBtn.dataset.toggle));
+        if (!u) return;
+        try {
+          await window.StockBarrio.apiFetch(`/api/v1/auth/usuarios/${u.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ activo: !u.activo }),
+          });
+          window.StockBarrio.showToast(u.activo ? "Usuario desactivado" : "Usuario activado", "ok");
+          cargarUsuarios();
+        } catch (err) {
+          window.StockBarrio.showToast(err.message, "error");
+        }
+      }
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = fId.value;
+      try {
+        if (!id) {
+          await window.StockBarrio.apiFetch("/api/v1/auth/usuarios", {
+            method: "POST",
+            body: JSON.stringify({
+              nombre: fNombre.value.trim(),
+              username: fUsername.value.trim(),
+              rol: fRol.value,
+              pin: fPin.value.trim(),
+            }),
+          });
+          window.StockBarrio.showToast("Usuario creado", "ok");
+        } else {
+          const payload = { nombre: fNombre.value.trim(), rol: fRol.value };
+          if (fPin.value.trim()) payload.pin = fPin.value.trim();
+          await window.StockBarrio.apiFetch(`/api/v1/auth/usuarios/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+          window.StockBarrio.showToast("Usuario actualizado", "ok");
+        }
+        cerrarModal();
+        cargarUsuarios();
+      } catch (err) {
+        window.StockBarrio.showToast(err.message, "error");
+      }
+    });
+
+    document.getElementById("btn-nuevo-usuario").addEventListener("click", abrirModalNuevo);
+    document.getElementById("modal-cerrar").addEventListener("click", cerrarModal);
+    document.getElementById("modal-cancelar").addEventListener("click", cerrarModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) cerrarModal();
+    });
+
+    cargarUsuarios();
+  });
+</script>
+{% endblock %}

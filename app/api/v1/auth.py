@@ -13,6 +13,7 @@ from app.core.security import (
 )
 from app.models import Almacen, Usuario
 from app.schemas.auth import (
+    ActualizarUsuarioRequest,
     CrearUsuarioRequest,
     LoginRequest,
     SesionResponse,
@@ -119,3 +120,55 @@ def crear_usuario(
     db.commit()
     db.refresh(nuevo)
     return UsuarioPublico.model_validate(nuevo)
+
+
+@router.get("/usuarios/admin", response_model=list[UsuarioPublico])
+def listar_todos_los_usuarios(
+    admin: Usuario = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    usuarios = db.scalars(
+        select(Usuario)
+        .where(Usuario.almacen_id == admin.almacen_id)
+        .order_by(Usuario.id.asc())
+    ).all()
+    return list(usuarios)
+
+
+@router.patch("/usuarios/{usuario_id}", response_model=UsuarioPublico)
+def actualizar_usuario(
+    usuario_id: int,
+    data: ActualizarUsuarioRequest,
+    admin: Usuario = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    objetivo = db.scalar(
+        select(Usuario).where(
+            Usuario.id == usuario_id,
+            Usuario.almacen_id == admin.almacen_id,
+        )
+    )
+    if not objetivo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    if objetivo.id == admin.id and data.activo is False:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No puedes desactivar tu propio usuario",
+        )
+
+    if data.nombre is not None:
+        objetivo.nombre = data.nombre.strip()
+    if data.rol is not None:
+        objetivo.rol = data.rol.value
+    if data.pin is not None:
+        objetivo.pin_hash = hash_pin(data.pin)
+    if data.activo is not None:
+        objetivo.activo = data.activo
+
+    db.commit()
+    db.refresh(objetivo)
+    return UsuarioPublico.model_validate(objetivo)

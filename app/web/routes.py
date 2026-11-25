@@ -71,6 +71,24 @@ def dashboard_page(
     )
 
 
+@router.get("/usuarios", response_class=HTMLResponse)
+def usuarios_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    sb_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+):
+    usuario, almacen = _get_session_user(db, sb_session)
+    if not usuario:
+        return RedirectResponse(url="/login", status_code=302)
+    if usuario.rol != RolUsuario.ADMIN.value:
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse(
+        request,
+        "usuarios.html",
+        {"usuario": usuario, "almacen": almacen, "active_page": "usuarios"},
+    )
+
+
 MODULOS_SPRINT_2 = {
     "pos": ("Punto de Venta", "Cobro rapido en meson con teclado y lector de codigo de barras.", False),
     "inventario": ("Inventario y Semaforo", "Control de existencias, vencimientos y mermas.", False),
@@ -78,7 +96,6 @@ MODULOS_SPRINT_2 = {
     "compras": ("Compras Sugeridas", "Reposicion por proveedor lista para enviar por WhatsApp.", False),
     "caja": ("Caja y Arqueo Z", "Apertura de turno, medios de pago y cierre diario.", False),
     "reportes": ("Reportes Analiticos", "Rotacion de productos, margenes e indicadores ERI/TMV.", True),
-    "usuarios": ("Gestion de Usuarios", "Administracion de cajeros, roles y PIN de acceso.", True),
 }
 
 

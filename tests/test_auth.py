@@ -70,3 +70,26 @@ def test_flujo_login_roles_y_logout():
         res_out = client.post("/api/v1/auth/logout")
         assert res_out.status_code == 200
         assert client.get("/api/v1/auth/me").status_code == 401
+
+
+def test_admin_actualizar_y_proteccion_autodesactivacion():
+    with TestClient(app) as client:
+        usuarios = client.get("/api/v1/auth/usuarios").json()
+        admin = next(u for u in usuarios if u["username"] == "admin")
+
+        assert client.post(
+            "/api/v1/auth/login",
+            json={"usuario_id": admin["id"], "pin": "1234"},
+        ).status_code == 200
+
+        # Admin no puede desactivarse a si mismo
+        res_auto = client.patch(
+            f"/api/v1/auth/usuarios/{admin['id']}",
+            json={"activo": False},
+        )
+        assert res_auto.status_code == 400
+
+        # Listado admin devuelve todos los usuarios del almacen
+        res_admin_list = client.get("/api/v1/auth/usuarios/admin")
+        assert res_admin_list.status_code == 200
+        assert len(res_admin_list.json()) >= 1
