@@ -22,6 +22,7 @@ class Usuario(Base):
     almacen_id: Mapped[int] = mapped_column(ForeignKey("almacenes.id"), nullable=False, index=True)
     nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     username: Mapped[str] = mapped_column(String(50), nullable=False)
+    telefono: Mapped[str | None] = mapped_column(String(30), nullable=True)
     pin_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     rol: Mapped[str] = mapped_column(String(20), nullable=False, default=RolUsuario.CAJERO.value)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

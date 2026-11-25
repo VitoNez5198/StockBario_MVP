@@ -89,6 +89,43 @@ def test_admin_actualizar_y_proteccion_autodesactivacion():
         )
         assert res_auto.status_code == 400
 
+        # Ultimo admin no puede bajarse a CAJERO
+        res_rol = client.patch(
+            f"/api/v1/auth/usuarios/{admin['id']}",
+            json={"rol": "CAJERO"},
+        )
+        assert res_rol.status_code == 400
+
+        # Nombre con numeros debe rechazarse (422)
+        res_nombre_mal = client.post(
+            "/api/v1/auth/usuarios",
+            json={
+                "nombre": "Juan 123",
+                "username": "juan123",
+                "pin": "5678",
+                "rol": "CAJERO",
+            },
+        )
+        assert res_nombre_mal.status_code == 422
+
+        # Crear usuario con telefono y luego eliminarlo
+        res_nuevo = client.post(
+            "/api/v1/auth/usuarios",
+            json={
+                "nombre": "Pedro Perez",
+                "username": "pedro_qa_del",
+                "telefono": "+56 9 8888 7777",
+                "pin": "5678",
+                "rol": "CAJERO",
+            },
+        )
+        assert res_nuevo.status_code == 201
+        nuevo_id = res_nuevo.json()["id"]
+        assert res_nuevo.json()["telefono"] == "+56 9 8888 7777"
+
+        res_del = client.delete(f"/api/v1/auth/usuarios/{nuevo_id}")
+        assert res_del.status_code == 200
+
         # Listado admin devuelve todos los usuarios del almacen
         res_admin_list = client.get("/api/v1/auth/usuarios/admin")
         assert res_admin_list.status_code == 200

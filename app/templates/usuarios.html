@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Usuarios del almacen</h1>
-    <p class="page-subtitle">Administra cajeros, roles y PIN de acceso para {{ almacen.nombre }}.</p>
+    <p class="page-subtitle">Administra cajeros, roles, contacto y PIN de acceso para {{ almacen.nombre }}.</p>
   </div>
   <button type="button" id="btn-nuevo-usuario" class="btn btn-primary">
     <i data-lucide="user-plus"></i>
@@ -20,14 +20,15 @@
         <tr>
           <th>Nombre</th>
           <th>Usuario</th>
+          <th>Telefono</th>
           <th>Rol</th>
           <th>Estado</th>
-          <th style="width: 210px;">Acciones</th>
+          <th style="width: 280px;">Acciones</th>
         </tr>
       </thead>
       <tbody id="usuarios-tbody">
         <tr>
-          <td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">
+          <td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">
             Cargando usuarios...
           </td>
         </tr>
@@ -49,13 +50,18 @@
       <input type="hidden" id="u-id">
 
       <div class="form-group">
-        <label class="form-label" for="u-nombre">Nombre completo</label>
-        <input class="form-input" id="u-nombre" type="text" required minlength="2" maxlength="100" placeholder="Ej: Maria Gonzalez">
+        <label class="form-label" for="u-nombre">Nombre completo (solo letras)</label>
+        <input class="form-input" id="u-nombre" type="text" required minlength="2" maxlength="100" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+" placeholder="Ej: Maria Gonzalez">
       </div>
 
       <div class="form-group" id="grupo-username">
         <label class="form-label" for="u-username">Nombre de usuario</label>
-        <input class="form-input" id="u-username" type="text" required minlength="2" maxlength="50" placeholder="Ej: maria">
+        <input class="form-input" id="u-username" type="text" required minlength="2" maxlength="50" placeholder="Ej: maria01">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="u-telefono">Telefono de contacto (opcional)</label>
+        <input class="form-input tabular" id="u-telefono" type="tel" maxlength="30" placeholder="Ej: +56 9 1234 5678">
       </div>
 
       <div class="form-group">
@@ -78,6 +84,26 @@
     </form>
   </div>
 </div>
+
+<div class="modal-backdrop" id="modal-eliminar">
+  <div class="modal-card" style="max-width: 400px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Eliminar usuario</h2>
+      <button type="button" class="btn-icon" id="elim-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <p id="elim-mensaje" style="color:var(--text-muted); font-size:14px;">
+      Esta accion eliminara al usuario del almacen.
+    </p>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="elim-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="elim-confirmar" style="background:var(--danger);">
+        Eliminar
+      </button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -86,23 +112,28 @@
     const CURRENT_USER_ID = {{ usuario.id }};
     const tbody = document.getElementById("usuarios-tbody");
     const modal = document.getElementById("modal-usuario");
+    const modalEliminar = document.getElementById("modal-eliminar");
     const form = document.getElementById("form-usuario");
     const modalTitulo = document.getElementById("modal-titulo");
     const grupoUsername = document.getElementById("grupo-username");
     const labelPin = document.getElementById("label-pin");
+    const elimMensaje = document.getElementById("elim-mensaje");
 
     const fId = document.getElementById("u-id");
     const fNombre = document.getElementById("u-nombre");
     const fUsername = document.getElementById("u-username");
+    const fTelefono = document.getElementById("u-telefono");
     const fRol = document.getElementById("u-rol");
     const fPin = document.getElementById("u-pin");
 
     let usuariosCache = [];
+    let usuarioAEliminar = null;
 
     function abrirModalNuevo() {
       fId.value = "";
       fNombre.value = "";
       fUsername.value = "";
+      fTelefono.value = "";
       fRol.value = "CAJERO";
       fPin.value = "";
       fUsername.required = true;
@@ -118,6 +149,7 @@
       fId.value = u.id;
       fNombre.value = u.nombre;
       fUsername.value = u.username;
+      fTelefono.value = u.telefono || "";
       fRol.value = u.rol;
       fPin.value = "";
       fUsername.required = false;
@@ -133,9 +165,20 @@
       modal.classList.remove("open");
     }
 
+    function abrirModalEliminar(u) {
+      usuarioAEliminar = u;
+      elimMensaje.textContent = `¿Seguro que deseas eliminar a "${u.nombre}" (${u.username})?`;
+      modalEliminar.classList.add("open");
+    }
+
+    function cerrarModalEliminar() {
+      usuarioAEliminar = null;
+      modalEliminar.classList.remove("open");
+    }
+
     function renderTabla() {
       if (!usuariosCache.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">Sin usuarios registrados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">Sin usuarios registrados.</td></tr>`;
         return;
       }
 
@@ -150,16 +193,20 @@
           <tr>
             <td><strong>${u.nombre}</strong></td>
             <td style="color:var(--text-muted);">${u.username}</td>
+            <td class="tabular" style="color:var(--text-muted);">${u.telefono || "-"}</td>
             <td><span class="badge ${badgeRol}">${u.rol}</span></td>
             <td><span class="badge ${badgeEstado}">${textoEstado}</span></td>
             <td>
               <div class="table-actions">
                 <button type="button" class="btn btn-secondary" data-edit="${u.id}" style="padding:5px 10px; font-size:12.5px;">
-                  Editar / PIN
+                  Editar
                 </button>
                 ${esPropio ? "" : `
                   <button type="button" class="btn btn-ghost" data-toggle="${u.id}" style="padding:5px 10px; font-size:12.5px;">
                     ${toggleLabel}
+                  </button>
+                  <button type="button" class="btn btn-ghost" data-delete="${u.id}" style="padding:5px 10px; font-size:12.5px; color:var(--danger);">
+                    Eliminar
                   </button>
                 `}
               </div>
@@ -199,6 +246,26 @@
         } catch (err) {
           window.StockBarrio.showToast(err.message, "error");
         }
+        return;
+      }
+      const deleteBtn = e.target.closest("[data-delete]");
+      if (deleteBtn) {
+        const u = usuariosCache.find((item) => item.id === Number(deleteBtn.dataset.delete));
+        if (u) abrirModalEliminar(u);
+      }
+    });
+
+    document.getElementById("elim-confirmar").addEventListener("click", async () => {
+      if (!usuarioAEliminar) return;
+      try {
+        await window.StockBarrio.apiFetch(`/api/v1/auth/usuarios/${usuarioAEliminar.id}`, {
+          method: "DELETE",
+        });
+        window.StockBarrio.showToast("Usuario eliminado", "ok");
+        cerrarModalEliminar();
+        cargarUsuarios();
+      } catch (err) {
+        window.StockBarrio.showToast(err.message, "error");
       }
     });
 
@@ -212,13 +279,18 @@
             body: JSON.stringify({
               nombre: fNombre.value.trim(),
               username: fUsername.value.trim(),
+              telefono: fTelefono.value.trim() || null,
               rol: fRol.value,
               pin: fPin.value.trim(),
             }),
           });
           window.StockBarrio.showToast("Usuario creado", "ok");
         } else {
-          const payload = { nombre: fNombre.value.trim(), rol: fRol.value };
+          const payload = {
+            nombre: fNombre.value.trim(),
+            telefono: fTelefono.value.trim() || null,
+            rol: fRol.value,
+          };
           if (fPin.value.trim()) payload.pin = fPin.value.trim();
           await window.StockBarrio.apiFetch(`/api/v1/auth/usuarios/${id}`, {
             method: "PATCH",
@@ -236,9 +308,10 @@
     document.getElementById("btn-nuevo-usuario").addEventListener("click", abrirModalNuevo);
     document.getElementById("modal-cerrar").addEventListener("click", cerrarModal);
     document.getElementById("modal-cancelar").addEventListener("click", cerrarModal);
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) cerrarModal();
-    });
+    document.getElementById("elim-cerrar").addEventListener("click", cerrarModalEliminar);
+    document.getElementById("elim-cancelar").addEventListener("click", cerrarModalEliminar);
+    modal.addEventListener("click", (e) => { if (e.target === modal) cerrarModal(); });
+    modalEliminar.addEventListener("click", (e) => { if (e.target === modalEliminar) cerrarModalEliminar(); });
 
     cargarUsuarios();
   });

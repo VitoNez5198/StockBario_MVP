@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -11,7 +11,7 @@ from app.core.security import (
     hash_pin,
     verify_pin,
 )
-from app.models import Almacen, Usuario
+from app.models import Almacen, RolUsuario, Usuario
 from app.schemas.auth import (
     ActualizarUsuarioRequest,
     CrearUsuarioRequest,
@@ -111,8 +111,9 @@ def crear_usuario(
 
     nuevo = Usuario(
         almacen_id=admin.almacen_id,
-        nombre=data.nombre.strip(),
+        nombre=data.nombre,
         username=data.username,
+        telefono=data.telefono,
         pin_hash=hash_pin(data.pin),
         rol=data.rol.value,
     )
@@ -120,6 +121,17 @@ def crear_usuario(
     db.commit()
     db.refresh(nuevo)
     return UsuarioPublico.model_validate(nuevo)
+
+
+def _contar_admins_activos(db: Session, almacen_id: int) -> int:
+    total = db.scalar(
+        select(func.count(Usuario.id)).where(
+            Usuario.almacen_id == almacen_id,
+            Usuario.rol == RolUsuario.ADMIN.value,
+            Usuario.activo.is_(True),
+        )
+    )
+    return int(total or 0)
 
 
 @router.get("/usuarios/admin", response_model=list[UsuarioPublico])
@@ -160,15 +172,68 @@ def actualizar_usuario(
             detail="No puedes desactivar tu propio usuario",
         )
 
-    if data.nombre is not None:
-        objetivo.nombre = data.nombre.strip()
-    if data.rol is not None:
+    es_admin_activo = objetivo.rol == RolUsuario.ADMIN.value and objetivo.activo
+    pierde_admin = (
+        (data.rol is not None and data.rol != RolUsuario.ADMIN)
+        or data.activo is False
+    )
+    if es_admin_activo and pierde_admin and _contar_admins_activos(db, admin.almacen_id) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe existir al menos un administrador activo en el almacen",
+        )
+
+    campos_enviados = data.model_fields_set
+    if "nombre" in campos_enviados and data.nombre is not None:
+        objetivo.nombre = data.nombre
+    if "telefono" in campos_enviados:
+        objetivo.telefono = data.telefono
+    if "rol" in campos_enviados and data.rol is not None:
         objetivo.rol = data.rol.value
-    if data.pin is not None:
+    if "pin" in campos_enviados and data.pin is not None:
         objetivo.pin_hash = hash_pin(data.pin)
-    if data.activo is not None:
+    if "activo" in campos_enviados and data.activo is not None:
         objetivo.activo = data.activo
 
     db.commit()
     db.refresh(objetivo)
     return UsuarioPublico.model_validate(objetivo)
+
+
+@router.delete("/usuarios/{usuario_id}")
+def eliminar_usuario(
+    usuario_id: int,
+    admin: Usuario = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    objetivo = db.scalar(
+        select(Usuario).where(
+            Usuario.id == usuario_id,
+            Usuario.almacen_id == admin.almacen_id,
+        )
+    )
+    if not objetivo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    if objetivo.id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No puedes eliminar tu propio usuario",
+        )
+
+    if (
+        objetivo.rol == RolUsuario.ADMIN.value
+        and objetivo.activo
+        and _contar_admins_activos(db, admin.almacen_id) <= 1
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe existir al menos un administrador activo en el almacen",
+        )
+
+    db.delete(objetivo)
+    db.commit()
+    return {"mensaje": "Usuario eliminado"}
