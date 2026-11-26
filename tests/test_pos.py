@@ -117,3 +117,24 @@ def test_flujo_pos_caja_bloqueo_venta_y_anulacion():
         ).json()
         prod_final = next(p for p in prods_final if p["id"] == prod_optimo["id"])
         assert prod_final["stock_actual"] == stock_antes
+
+
+def test_vista_html_pos_protegida():
+    with TestClient(app) as client:
+        # Sin sesion redirige a /login
+        res_anon = client.get("/pos", follow_redirects=False)
+        assert res_anon.status_code == 302
+        assert res_anon.headers["location"] == "/login"
+
+        # Con sesion carga la vista /pos
+        usuarios = client.get("/api/v1/auth/usuarios").json()
+        admin = next(u for u in usuarios if u["username"] == "admin")
+        assert client.post(
+            "/api/v1/auth/login",
+            json={"usuario_id": admin["id"], "pin": "1234"},
+        ).status_code == 200
+
+        res_pos = client.get("/pos")
+        assert res_pos.status_code == 200
+        assert "Meson (Cobro)" in res_pos.text
+        assert "Historial del dia" in res_pos.text

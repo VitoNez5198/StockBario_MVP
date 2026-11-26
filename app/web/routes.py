@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import SESSION_COOKIE_NAME, read_session_token
 from app.models import Almacen, RolUsuario, Usuario
+from app.services.pos_service import obtener_caja_abierta
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -64,10 +65,38 @@ def dashboard_page(
     usuario, almacen = _get_session_user(db, sb_session)
     if not usuario:
         return RedirectResponse(url="/login", status_code=302)
+    caja_abierta = obtener_caja_abierta(db, usuario.almacen_id)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"usuario": usuario, "almacen": almacen, "active_page": "dashboard"},
+        {
+            "usuario": usuario,
+            "almacen": almacen,
+            "active_page": "dashboard",
+            "caja_abierta": caja_abierta,
+        },
+    )
+
+
+@router.get("/pos", response_class=HTMLResponse)
+def pos_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    sb_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+):
+    usuario, almacen = _get_session_user(db, sb_session)
+    if not usuario:
+        return RedirectResponse(url="/login", status_code=302)
+    caja_abierta = obtener_caja_abierta(db, usuario.almacen_id)
+    return templates.TemplateResponse(
+        request,
+        "pos.html",
+        {
+            "usuario": usuario,
+            "almacen": almacen,
+            "active_page": "pos",
+            "caja_abierta": caja_abierta,
+        },
     )
 
 
@@ -82,15 +111,20 @@ def usuarios_page(
         return RedirectResponse(url="/login", status_code=302)
     if usuario.rol != RolUsuario.ADMIN.value:
         return RedirectResponse(url="/", status_code=302)
+    caja_abierta = obtener_caja_abierta(db, usuario.almacen_id)
     return templates.TemplateResponse(
         request,
         "usuarios.html",
-        {"usuario": usuario, "almacen": almacen, "active_page": "usuarios"},
+        {
+            "usuario": usuario,
+            "almacen": almacen,
+            "active_page": "usuarios",
+            "caja_abierta": caja_abierta,
+        },
     )
 
 
 MODULOS_SPRINT_2 = {
-    "pos": ("Punto de Venta", "Cobro rapido en meson con teclado y lector de codigo de barras.", False),
     "inventario": ("Inventario y Semaforo", "Control de existencias, vencimientos y mermas.", False),
     "fiados": ("Libreta de Fiados", "Cuentas corrientes de vecinos, cupos y abonos.", False),
     "compras": ("Compras Sugeridas", "Reposicion por proveedor lista para enviar por WhatsApp.", False),
@@ -116,6 +150,7 @@ def modulo_page(
     if solo_admin and usuario.rol != RolUsuario.ADMIN.value:
         return RedirectResponse(url="/", status_code=302)
 
+    caja_abierta = obtener_caja_abierta(db, usuario.almacen_id)
     return templates.TemplateResponse(
         request,
         "modulo_pendiente.html",
@@ -125,5 +160,6 @@ def modulo_page(
             "active_page": modulo,
             "titulo": titulo,
             "descripcion": descripcion,
+            "caja_abierta": caja_abierta,
         },
     )

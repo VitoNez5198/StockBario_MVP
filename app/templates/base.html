@@ -77,7 +77,9 @@
             <i data-lucide="panel-left"></i>
           </button>
           <span class="topbar-store">{{ almacen.nombre if almacen else 'StockBarrio' }}</span>
-          <span class="badge badge-neutral">Caja sin abrir</span>
+          <span id="topbar-caja-badge" class="badge {% if caja_abierta %}badge-ok{% else %}badge-neutral{% endif %}">
+            {% if caja_abierta %}Caja abierta{% else %}Caja sin abrir{% endif %}
+          </span>
         </div>
 
         <div class="topbar-right">

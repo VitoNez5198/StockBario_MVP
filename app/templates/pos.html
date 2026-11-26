@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Punto de Venta - StockBarrio{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/pos.css">
+{% endblock %}
+
+{% block content %}
+<div class="pos-header">
+  <div>
+    <h1 class="page-title">Punto de Venta</h1>
+    <p class="page-subtitle">Cobro en meson y registro de ventas del turno actual.</p>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <button type="button" id="btn-atajos" class="btn btn-secondary" title="Ver atajos de teclado [F1]">
+      <i data-lucide="keyboard"></i>
+      Atajos [F1]
+    </button>
+
+    <button type="button" id="btn-fullscreen" class="btn btn-secondary" title="Pantalla completa">
+      <i data-lucide="maximize-2"></i>
+      <span id="btn-fullscreen-label">Pantalla completa</span>
+    </button>
+
+    <div class="pos-tabs" role="tablist">
+      <button type="button" id="tab-meson" class="pos-tab active" role="tab" aria-selected="true">
+        <i data-lucide="shopping-cart"></i>
+        Meson (Cobro)
+      </button>
+      <button type="button" id="tab-historial" class="pos-tab" role="tab" aria-selected="false">
+        <i data-lucide="receipt"></i>
+        Historial del dia
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="caja-banner" class="caja-banner" style="display: {% if caja_abierta %}none{% else %}flex{% endif %};">
+  <div class="caja-banner-info">
+    <i data-lucide="alert-triangle"></i>
+    <div>
+      <strong>La caja esta cerrada.</strong> Abre un turno para comenzar a registrar ventas.
+    </div>
+  </div>
+  <button type="button" id="btn-abrir-caja-banner" class="btn btn-primary">
+    <i data-lucide="wallet"></i>
+    Abrir caja
+  </button>
+</div>
+
+<section id="panel-meson" class="pos-grid">
+  <div>
+    <div class="pos-search-wrap">
+      <i data-lucide="search"></i>
+      <input
+        id="pos-search"
+        type="text"
+        class="pos-search-input"
+        placeholder="Buscar producto o escanear codigo [F2 o /]"
+        autocomplete="off"
+      >
+    </div>
+
+    <div id="pos-productos" class="products-grid">
+      <div class="card" style="grid-column: 1 / -1; text-align:center; color:var(--text-muted);">
+        Cargando catalogo...
+      </div>
+    </div>
+  </div>
+
+  <aside class="card cart-panel">
+    <div class="cart-header">
+      <span class="cart-title">Carrito actual</span>
+      <button type="button" id="btn-limpiar-carrito" class="btn btn-ghost" style="padding:4px 8px; font-size:12px;">
+        Limpiar [Esc]
+      </button>
+    </div>
+
+    <div id="cart-items" class="cart-items">
+      <div class="cart-empty">Escanea o selecciona productos para cobrar.</div>
+    </div>
+
+    <div class="cart-total-box">
+      <span class="cart-total-label">Total a pagar</span>
+      <span id="cart-total" class="cart-total-value tabular">$ 0</span>
+    </div>
+
+    <div>
+      <span class="form-label">Metodo de pago (Alt + 1/2/3)</span>
+      <div class="pay-methods" id="pay-methods">
+        <button type="button" class="pay-btn active" data-method="EFECTIVO">1. Efectivo</button>
+        <button type="button" class="pay-btn" data-method="DEBITO">2. Debito</button>
+        <button type="button" class="pay-btn" data-method="TRANSFERENCIA">3. Transf.</button>
+      </div>
+    </div>
+
+    <div id="efectivo-box" class="efectivo-box">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label" for="monto-recibido">Monto recibido [F8 o Alt+E]</label>
+        <input
+          id="monto-recibido"
+          type="number"
+          min="0"
+          step="10"
+          class="form-input tabular"
+          placeholder="Ej: 5000 (Enter para cobrar)"
+        >
+      </div>
+      <div class="vuelto-row">
+        <span style="color:var(--text-muted); font-weight:500;">Vuelto</span>
+        <span id="vuelto-valor" class="vuelto-value tabular">$ 0</span>
+      </div>
+    </div>
+
+    <button type="button" id="btn-cobrar" class="btn btn-primary btn-cobrar" disabled>
+      <i data-lucide="check-circle"></i>
+      Cobrar [F9 / Ctrl+Enter]
+    </button>
+  </aside>
+</section>
+
+<section id="panel-historial" class="card" style="display:none; padding:0; overflow:hidden;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); gap:12px; flex-wrap:wrap;">
+    <div>
+      <h2 style="font-size:16px; font-weight:700;">Ventas del turno actual</h2>
+      <p style="font-size:13px; color:var(--text-muted);">Consulta ventas emitidas o anula un comprobante devolviendo el stock.</p>
+    </div>
+    <button type="button" id="btn-refrescar-historial" class="btn btn-secondary">
+      <i data-lucide="refresh-cw"></i>
+      Actualizar
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Folio</th>
+          <th>Hora</th>
+          <th>Cajero</th>
+          <th>Detalle</th>
+          <th>Metodo</th>
+          <th>Total</th>
+          <th>Estado</th>
+          <th style="width:120px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="historial-tbody">
+        <tr>
+          <td colspan="8" style="text-align:center; color:var(--text-muted); padding:24px;">
+            Sin ventas registradas en este turno.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="modal-backdrop" id="modal-cantidad">
+  <div class="modal-card" style="max-width:380px;">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" id="cant-prod-nombre">Producto</h2>
+        <p id="cant-prod-meta" style="font-size:12.5px; color:var(--text-muted); margin-top:2px;"></p>
+      </div>
+      <button type="button" class="btn-icon" id="cerrar-modal-cantidad" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-cantidad">
+      <div class="qty-presets" id="cant-presets"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="cant-input" id="cant-label">Cantidad</label>
+        <input id="cant-input" type="number" class="form-input tabular" required>
+      </div>
+
+      <div class="qty-subtotal-row">
+        <span style="color:var(--text-muted); font-weight:500;">Subtotal</span>
+        <strong id="cant-subtotal" class="tabular" style="font-size:17px;">$ 0</strong>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelar-modal-cantidad">Cancelar [Esc]</button>
+        <button type="submit" class="btn btn-primary">Agregar [Enter]</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-atajos">
+  <div class="modal-card" style="max-width:440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Atajos de teclado en POS</h2>
+      <button type="button" class="btn-icon" id="cerrar-modal-atajos" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <div class="shortcuts-list">
+      <div class="shortcut-row">
+        <span>Buscar o escanear producto</span>
+        <span><span class="kbd">F2</span> o <span class="kbd">/</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Cambiar metodo de pago</span>
+        <span><span class="kbd">Alt</span> + <span class="kbd">1</span> <span class="kbd">2</span> <span class="kbd">3</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Ingresar monto recibido</span>
+        <span><span class="kbd">F8</span> o <span class="kbd">Alt</span> + <span class="kbd">E</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Cobrar venta actual</span>
+        <span><span class="kbd">F9</span> o <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Cerrar modal / Limpiar carrito</span>
+        <span class="kbd">Esc</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" id="aceptar-modal-atajos">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-abrir-caja">
+  <div class="modal-card" style="max-width:400px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Abrir turno de caja</h2>
+      <button type="button" class="btn-icon" id="cerrar-modal-caja" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <form id="form-abrir-caja">
+      <div class="form-group">
+        <label class="form-label" for="fondo-inicial">Fondo inicial en efectivo (CLP)</label>
+        <input id="fondo-inicial" type="number" min="0" step="100" value="0" class="form-input tabular" required>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelar-modal-caja">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Abrir turno</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-anular-venta">
+  <div class="modal-card" style="max-width:410px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Anular venta</h2>
+      <button type="button" class="btn-icon" id="cerrar-modal-anular" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <p id="anular-mensaje" style="color:var(--text-muted); font-size:14px;">
+      Esta accion anulara la venta y repondra el stock al inventario.
+    </p>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="cancelar-modal-anular">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="confirmar-anular" style="background:var(--danger);">
+        Confirmar anulacion
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pos.js" defer></script>
+{% endblock %}
