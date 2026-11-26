@@ -1,0 +1,119 @@
+from fastapi.testclient import TestClient
+from sqlalchemy import update
+
+from app.core.database import SessionLocal
+from app.main import app
+from app.models import EstadoCaja, SesionCaja
+
+
+def _cerrar_cajas_abiertas() -> None:
+    with SessionLocal() as db:
+        db.execute(
+            update(SesionCaja)
+            .where(SesionCaja.estado == EstadoCaja.ABIERTA.value)
+            .values(estado=EstadoCaja.CERRADA.value)
+        )
+        db.commit()
+
+
+def test_flujo_pos_caja_bloqueo_venta_y_anulacion():
+    with TestClient(app) as client:
+        _cerrar_cajas_abiertas()
+
+        usuarios = client.get("/api/v1/auth/usuarios").json()
+        admin = next(u for u in usuarios if u["username"] == "admin")
+        assert client.post(
+            "/api/v1/auth/login",
+            json={"usuario_id": admin["id"], "pin": "1234"},
+        ).status_code == 200
+
+        # Asegurar un cajero activo para probar anulacion como CAJERO
+        client.post(
+            "/api/v1/auth/usuarios",
+            json={
+                "nombre": "Cajero POS",
+                "username": "cajero_pos",
+                "pin": "4321",
+                "rol": "CAJERO",
+            },
+        )
+        usuarios = client.get("/api/v1/auth/usuarios").json()
+        cajero = next(u for u in usuarios if u["username"] == "cajero_pos")
+        assert client.post(
+            "/api/v1/auth/login",
+            json={"usuario_id": cajero["id"], "pin": "4321"},
+        ).status_code == 200
+
+        productos = client.get("/api/v1/pos/productos").json()
+        assert len(productos) >= 6
+
+        prod_optimo = next(p for p in productos if not p["bloqueado_venta"])
+        prod_vencido = next(p for p in productos if p["estado_vencimiento"] == "VENCIDO")
+
+        # 1. Intentar vender sin caja abierta -> 400
+        res_sin_caja = client.post(
+            "/api/v1/pos/ventas",
+            json={
+                "metodo_pago": "EFECTIVO",
+                "monto_recibido": 10000,
+                "items": [{"producto_id": prod_optimo["id"], "cantidad": 1}],
+            },
+        )
+        assert res_sin_caja.status_code == 400
+
+        # 2. Abrir caja con fondo inicial -> 201
+        res_caja = client.post("/api/v1/pos/caja/abrir", json={"fondo_inicial": 20000})
+        assert res_caja.status_code == 201
+        assert res_caja.json()["estado"] == "ABIERTA"
+
+        # 3. Intentar vender producto vencido -> 400
+        res_vencido = client.post(
+            "/api/v1/pos/ventas",
+            json={
+                "metodo_pago": "EFECTIVO",
+                "monto_recibido": 10000,
+                "items": [{"producto_id": prod_vencido["id"], "cantidad": 1}],
+            },
+        )
+        assert res_vencido.status_code == 400
+
+        # 4. Vender producto valido en efectivo
+        stock_antes = prod_optimo["stock_actual"]
+        total_esperado = prod_optimo["precio_venta"] * 2
+        monto_recibido = total_esperado + 500
+        res_venta = client.post(
+            "/api/v1/pos/ventas",
+            json={
+                "metodo_pago": "EFECTIVO",
+                "monto_recibido": monto_recibido,
+                "items": [{"producto_id": prod_optimo["id"], "cantidad": 2}],
+            },
+        )
+        assert res_venta.status_code == 201
+        venta = res_venta.json()
+        assert venta["total"] == total_esperado
+        assert venta["vuelto"] == 500
+        assert venta["estado"] == "COMPLETADA"
+
+        # Verificar descuento de stock y presencia en historial
+        prods_despues = client.get(
+            "/api/v1/pos/productos",
+            params={"q": prod_optimo["nombre"]},
+        ).json()
+        prod_despues = next(p for p in prods_despues if p["id"] == prod_optimo["id"])
+        assert prod_despues["stock_actual"] == stock_antes - 2
+
+        historial = client.get("/api/v1/pos/ventas").json()
+        assert any(v["id"] == venta["id"] for v in historial)
+
+        # 5. Anular venta como CAJERO y verificar reposicion de stock
+        res_anular = client.post(f"/api/v1/pos/ventas/{venta['id']}/anular")
+        assert res_anular.status_code == 200
+        assert res_anular.json()["estado"] == "ANULADA"
+
+        prods_final = client.get(
+            "/api/v1/pos/productos",
+            params={"q": prod_optimo["nombre"]},
+        ).json()
+        prod_final = next(p for p in prods_final if p["id"] == prod_optimo["id"])
+        assert prod_final["stock_actual"] == stock_antes
