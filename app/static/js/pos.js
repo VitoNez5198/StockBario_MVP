@@ -538,8 +538,8 @@
     });
 
     // Pantalla completa
-    function sincronizarFullscreenUI() {
-      const activo = Boolean(document.fullscreenElement);
+    function aplicarEstadoFullscreen(activo) {
+      document.body.classList.toggle("pos-fullscreen", activo);
       if (btnFullscreenLabel) {
         btnFullscreenLabel.textContent = activo ? "Salir pantalla" : "Pantalla completa";
       }
@@ -550,15 +550,23 @@
       }
     }
 
+    function sincronizarFullscreenUI() {
+      aplicarEstadoFullscreen(Boolean(document.fullscreenElement));
+    }
+
     if (btnFullscreen) {
       btnFullscreen.addEventListener("click", async () => {
         try {
-          if (!document.fullscreenElement) {
+          if (!document.fullscreenElement && !document.body.classList.contains("pos-fullscreen")) {
             await document.documentElement.requestFullscreen();
-          } else {
+          } else if (document.fullscreenElement) {
             await document.exitFullscreen();
+          } else {
+            aplicarEstadoFullscreen(false);
           }
         } catch (_err) {
+          const nuevoEstado = !document.body.classList.contains("pos-fullscreen");
+          aplicarEstadoFullscreen(nuevoEstado);
           window.StockBarrio.showToast("Usa F11 para pantalla completa", "warn");
         }
       });
