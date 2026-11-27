@@ -7,9 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600&family=Fragment+Mono&family=Mona+Sans:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/base.css?v=2">
+  <script>
+    (function () {
+      var t = localStorage.getItem("sb_theme");
+      if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+      document.documentElement.classList.add("no-sidebar-transition");
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/css/base.css?v=3">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
-  <script src="/static/js/ui.js?v=2" defer></script>
+  <script src="/static/js/ui.js?v=3" defer></script>
   {% block head %}{% endblock %}
 </head>
 <body>

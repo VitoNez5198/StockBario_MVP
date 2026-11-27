@@ -71,4 +71,9 @@
     </div>
     {% endif %}
   </div>
+  <script>
+    if (localStorage.getItem("sb_sidebar_collapsed") === "1") {
+      document.getElementById("sidebar").classList.add("collapsed");
+    }
+  </script>
 </aside>

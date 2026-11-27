@@ -48,6 +48,12 @@
         sidebar.classList.contains("collapsed") ? "1" : "0"
       );
     });
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove("no-sidebar-transition");
+      });
+    });
   }
 
   function showToast(mensaje, tipo = "ok") {

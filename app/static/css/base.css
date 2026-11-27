@@ -114,6 +114,11 @@ html, body {
   width: var(--sidebar-collapsed-w);
 }
 
+html.no-sidebar-transition .sidebar,
+html.no-sidebar-transition .main-area {
+  transition: none !important;
+}
+
 .sidebar-header {
   height: var(--topbar-h);
   display: flex;
