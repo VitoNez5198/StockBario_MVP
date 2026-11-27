@@ -1,0 +1,235 @@
+.compras-kpis {
+  margin-bottom: 18px;
+}
+
+.compras-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compras-kpi-card.kpi-warn {
+  border-left: 3px solid var(--warn);
+}
+
+.compras-kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.compras-kpi-value {
+  font-family: "Fragment Mono", ui-monospace, monospace;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.compras-kpi-card.kpi-warn .compras-kpi-value {
+  color: var(--warn);
+}
+
+.compras-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.compras-tabs {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  gap: 4px;
+}
+
+.compras-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compras-tab svg { width: 15px; height: 15px; }
+
+.compras-tab.active {
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+
+.compras-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.compras-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 240px;
+}
+
+.compras-search-wrap svg {
+  position: absolute;
+  left: 11px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.compras-search-wrap .form-input {
+  padding-left: 34px;
+}
+
+.compras-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.compras-check-label input {
+  accent-color: var(--brand);
+}
+
+.compras-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compras-group-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.compras-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: none;
+  background: var(--surface-subtle);
+  flex-wrap: wrap;
+}
+
+.compras-group-card.open .compras-group-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.compras-group-toggle {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+}
+
+.compras-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.16s ease;
+}
+
+.compras-group-card.open .compras-chevron {
+  transform: rotate(180deg);
+}
+
+.compras-group-body {
+  display: none;
+}
+
+.compras-group-card.open .compras-group-body {
+  display: block;
+}
+
+.compras-group-title {
+  font-family: "Mona Sans", "Inter", sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.compras-group-meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.compras-group-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compras-qty-input {
+  width: 92px;
+  padding: 6px 8px;
+  text-align: right;
+}
+
+.compras-msg-box {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.compras-msg-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.compras-msg-pre {
+  font-family: "Fragment Mono", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.compras-empty {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--text-muted);
+}
+
+.compras-row-inactive {
+  opacity: 0.62;
+}

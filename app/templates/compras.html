@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Compras Sugeridas - StockBarrio{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/compras.css?v=2">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Compras Sugeridas WhatsApp</h1>
+    <p class="page-subtitle">Reposicion calculada con formula (stock minimo x 2 - stock vigente) agrupada por proveedor para {{ almacen.nombre }}.</p>
+  </div>
+  {% if es_admin %}
+  <button type="button" id="btn-nuevo-proveedor" class="btn btn-primary">
+    <i data-lucide="truck"></i>
+    Nuevo proveedor
+  </button>
+  {% endif %}
+</div>
+
+<section class="grid-3 compras-kpis" aria-label="Resumen de compras">
+  <div class="card compras-kpi-card kpi-warn">
+    <span class="compras-kpi-label">Productos a reponer</span>
+    <span class="compras-kpi-value" id="kpi-reponer">-</span>
+  </div>
+  <div class="card compras-kpi-card">
+    <span class="compras-kpi-label">Listas / proveedores</span>
+    <span class="compras-kpi-value" id="kpi-grupos">-</span>
+  </div>
+  <div class="card compras-kpi-card">
+    <span class="compras-kpi-label">Costo estimado pedido</span>
+    <span class="compras-kpi-value" id="kpi-costo">-</span>
+  </div>
+</section>
+
+<div class="compras-toolbar">
+  <div class="compras-tabs" role="tablist">
+    <button type="button" class="compras-tab active" id="tab-btn-sugeridas">
+      <i data-lucide="clipboard-list"></i>
+      Lista sugerida
+    </button>
+    <button type="button" class="compras-tab" id="tab-btn-proveedores">
+      <i data-lucide="truck"></i>
+      Proveedores
+    </button>
+  </div>
+
+  <div class="compras-controls" id="controls-sugeridas">
+    <div class="compras-search-wrap">
+      <i data-lucide="search"></i>
+      <input class="form-input" id="compras-search" type="search" placeholder="Buscar producto, codigo o proveedor...">
+    </div>
+    <label class="compras-check-label">
+      <input type="checkbox" id="compras-incluir-todos">
+      Incluir con stock suficiente
+    </label>
+    <button type="button" class="btn btn-secondary" id="btn-toggle-todos">
+      Expandir todo
+    </button>
+    <button type="button" class="btn btn-secondary" id="btn-refrescar-compras">
+      <i data-lucide="refresh-cw"></i>
+      Actualizar
+    </button>
+  </div>
+
+  <div class="compras-controls" id="controls-proveedores" style="display:none;">
+    <label class="compras-check-label">
+      <input type="checkbox" id="prov-ver-inactivos">
+      Ver inactivos
+    </label>
+  </div>
+</div>
+
+<div id="panel-sugeridas">
+  <div class="compras-groups" id="grupos-container">
+    <div class="card compras-empty">Calculando compras sugeridas...</div>
+  </div>
+</div>
+
+<div id="panel-proveedores" style="display:none;">
+  <section class="card" style="padding: 0; overflow: hidden;">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Proveedor</th>
+            <th>WhatsApp</th>
+            <th>Contacto</th>
+            <th>Productos</th>
+            <th>Estado</th>
+            {% if es_admin %}
+            <th style="width: 140px;">Acciones</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody id="proveedores-tbody">
+          <tr>
+            <td colspan="6" style="text-align:center; color:var(--text-muted); padding:24px;">
+              Cargando proveedores...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="modal-proveedor">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-prov-titulo">Nuevo proveedor</h2>
+      <button type="button" class="btn-icon" id="modal-prov-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-proveedor">
+      <input type="hidden" id="prov-id">
+
+      <div class="form-group">
+        <label class="form-label" for="prov-nombre">Nombre del proveedor</label>
+        <input class="form-input" id="prov-nombre" type="text" required minlength="2" maxlength="120" placeholder="Ej: Distribuidora Central">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="prov-whatsapp">Telefono WhatsApp (opcional)</label>
+        <input class="form-input tabular" id="prov-whatsapp" type="tel" maxlength="30" placeholder="Ej: +56991112222">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="prov-contacto">Contacto o dias de reparto (opcional)</label>
+        <input class="form-input" id="prov-contacto" type="text" maxlength="100" placeholder="Ej: Ruta lunes y jueves">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-prov-cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.COMPRAS_CONFIG = {
+    esAdmin: {{ 'true' if es_admin else 'false' }},
+    almacenNombre: {{ almacen.nombre|tojson if almacen else '"StockBarrio"' }}
+  };
+</script>
+<script src="/static/js/compras.js?v=2" defer></script>
+{% endblock %}

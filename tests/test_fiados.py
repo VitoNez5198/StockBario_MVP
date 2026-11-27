@@ -40,8 +40,15 @@ def test_flujo_fiados_pos_abonos_y_permisos():
                 "rol": "CAJERO",
             },
         )
-        usuarios = client.get("/api/v1/auth/usuarios").json()
+        usuarios = client.get("/api/v1/auth/usuarios/admin").json()
         cajero = next(u for u in usuarios if u["username"] == "cajero_fiados")
+        assert (
+            client.patch(
+                f"/api/v1/auth/usuarios/{cajero['id']}",
+                json={"pin": "5678", "rol": "CAJERO", "activo": True},
+            ).status_code
+            == 200
+        )
 
         # 1. Admin crea cliente con limite $5.000
         res_cli = client.post(
