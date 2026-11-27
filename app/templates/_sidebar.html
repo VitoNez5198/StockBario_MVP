@@ -1,0 +1,74 @@
+<aside class="sidebar" id="sidebar" aria-label="Navegacion principal">
+  <div class="sidebar-header">
+    <a href="/" class="brand-mark" title="StockBarrio - Resumen">
+      <span class="brand-icon">SB</span>
+      <span class="brand-text">StockBarrio</span>
+    </a>
+    <button type="button" id="sidebar-toggle" class="sidebar-collapse-btn" title="Mostrar u ocultar menu">
+      <i data-lucide="panel-left"></i>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-title">Operacion</span>
+    <a href="/" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" title="Resumen">
+      <i data-lucide="layout-dashboard"></i>
+      <span class="nav-label">Resumen</span>
+    </a>
+    <a href="/pos" class="nav-link {% if active_page == 'pos' %}active{% endif %}" title="Punto de Venta">
+      <i data-lucide="shopping-cart"></i>
+      <span class="nav-label">Punto de Venta</span>
+    </a>
+    <a href="/inventario" class="nav-link {% if active_page == 'inventario' %}active{% endif %}" title="Inventario">
+      <i data-lucide="package"></i>
+      <span class="nav-label">Inventario</span>
+    </a>
+    <a href="/fiados" class="nav-link {% if active_page == 'fiados' %}active{% endif %}" title="Libreta Fiados">
+      <i data-lucide="book-open"></i>
+      <span class="nav-label">Libreta Fiados</span>
+    </a>
+    <a href="/compras" class="nav-link {% if active_page == 'compras' %}active{% endif %}" title="Compras">
+      <i data-lucide="truck"></i>
+      <span class="nav-label">Compras</span>
+    </a>
+    <a href="/caja" class="nav-link {% if active_page == 'caja' %}active{% endif %}" title="Caja Z">
+      <i data-lucide="wallet"></i>
+      <span class="nav-label">Caja Z</span>
+    </a>
+
+    {% if usuario and usuario.rol == 'ADMIN' %}
+    <span class="nav-section-title">Administracion</span>
+    <a href="/reportes" class="nav-link {% if active_page == 'reportes' %}active{% endif %}" title="Reportes">
+      <i data-lucide="bar-chart-3"></i>
+      <span class="nav-label">Reportes</span>
+    </a>
+    <a href="/usuarios" class="nav-link {% if active_page == 'usuarios' %}active{% endif %}" title="Usuarios">
+      <i data-lucide="users"></i>
+      <span class="nav-label">Usuarios</span>
+    </a>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer">
+    <button type="button" id="theme-toggle" class="nav-link sidebar-action-btn" title="Cambiar tema">
+      <span data-icon="moon" style="display:inline-flex;"><i data-lucide="moon"></i></span>
+      <span data-icon="sun" style="display:none;"><i data-lucide="sun"></i></span>
+      <span class="nav-label">Cambiar tema</span>
+    </button>
+
+    <button type="button" id="logout-btn" class="nav-link sidebar-action-btn" title="Cambiar turno">
+      <i data-lucide="log-out"></i>
+      <span class="nav-label">Cambiar turno</span>
+    </button>
+
+    {% if usuario %}
+    <div class="sidebar-user-mini" title="{{ usuario.nombre }} ({{ usuario.rol }})">
+      <span class="sidebar-user-initials">{{ usuario.nombre[:2]|upper }}</span>
+      <div class="sidebar-user-info nav-label">
+        <strong>{{ usuario.nombre }}</strong>
+        <span>{{ usuario.rol }}</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</aside>

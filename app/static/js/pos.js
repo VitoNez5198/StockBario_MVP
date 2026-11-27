@@ -27,6 +27,8 @@
     const montoRecibidoInput = document.getElementById("monto-recibido");
     const vueltoValorEl = document.getElementById("vuelto-valor");
     const btnCobrar = document.getElementById("btn-cobrar");
+    const btnUltimoTicket = document.getElementById("btn-ultimo-ticket");
+    const btnUltimoTicketLabel = document.getElementById("btn-ultimo-ticket-label");
     const btnLimpiar = document.getElementById("btn-limpiar-carrito");
 
     const tabMeson = document.getElementById("tab-meson");
@@ -57,6 +59,21 @@
     const modalAtajos = document.getElementById("modal-atajos");
     const btnAtajos = document.getElementById("btn-atajos");
     const btnFullscreen = document.getElementById("btn-fullscreen");
+    const btnFullscreenLabel = document.getElementById("btn-fullscreen-label");
+    const autoPrintToggle = document.getElementById("auto-print-toggle");
+    const printFrame = document.getElementById("print-frame");
+    const modalTicket = document.getElementById("modal-ticket");
+    const ticketPreviewFrame = document.getElementById("ticket-preview-frame");
+    const btnImprimirModalTicket = document.getElementById("btn-imprimir-modal-ticket");
+
+    const AUTO_PRINT_KEY = "sb_auto_print";
+    if (autoPrintToggle) {
+      const savedAuto = localStorage.getItem(AUTO_PRINT_KEY);
+      autoPrintToggle.checked = savedAuto === null ? true : savedAuto === "1";
+      autoPrintToggle.addEventListener("change", () => {
+        localStorage.setItem(AUTO_PRINT_KEY, autoPrintToggle.checked ? "1" : "0");
+      });
+    }
 
     let productos = [];
     let carrito = [];
@@ -64,8 +81,34 @@
     let metodoPago = "EFECTIVO";
     let cajaAbierta = null;
     let ventaAAnular = null;
+    let ultimoTicketId = null;
     let productoSeleccionado = null;
     let enviandoVenta = false;
+
+    function imprimirTicketDirecto(ventaId) {
+      if (!printFrame) return;
+      printFrame.onload = () => {
+        try {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+        } catch (_err) {
+          window.StockBarrio.showToast("No se pudo abrir impresion automatica", "warn");
+        }
+      };
+      printFrame.src = `/pos/ticket/${ventaId}?embed=1`;
+    }
+
+    function previsualizarTicket(ventaId) {
+      if (!modalTicket || !ticketPreviewFrame) return;
+      ticketPreviewFrame.src = `/pos/ticket/${ventaId}?embed=1`;
+      modalTicket.classList.add("open");
+    }
+
+    function cerrarModalTicket() {
+      if (!modalTicket) return;
+      modalTicket.classList.remove("open");
+      searchInput.focus();
+    }
 
     function actualizarRelojTicket() {
       if (!ticketDateEl) return;
@@ -396,8 +439,11 @@
               ? '<span class="badge-state badge-danger">Anulada</span>'
               : '<span class="badge-state badge-ok">Completada</span>';
             const accion = anulada
-              ? '<span style="color:var(--pos-muted);">-</span>'
-              : `<button type="button" class="pos-btn-danger" data-anular-id="${v.id}" data-anular-folio="${escapeHtml(v.folio)}" data-anular-total="${v.total}" style="padding:5px 10px; font-size:12px;">Anular</button>`;
+              ? `<button type="button" class="pos-btn-sec" data-ticket-id="${v.id}" style="padding:5px 9px; font-size:12px;">Ticket</button>`
+              : `<div style="display:flex; gap:6px;">
+                  <button type="button" class="pos-btn-sec" data-ticket-id="${v.id}" style="padding:5px 9px; font-size:12px;">Ticket</button>
+                  <button type="button" class="pos-btn-danger" data-anular-id="${v.id}" data-anular-folio="${escapeHtml(v.folio)}" data-anular-total="${v.total}" style="padding:5px 10px; font-size:12px;">Anular</button>
+                 </div>`;
 
             return `
               <tr>
@@ -460,6 +506,14 @@
             ? ` (Vuelto: ${formatMoney(venta.vuelto)})`
             : "";
         window.StockBarrio.showToast(`Venta ${venta.folio} registrada${msgVuelto}`, "ok");
+        ultimoTicketId = venta.id;
+        if (btnUltimoTicket && btnUltimoTicketLabel) {
+          btnUltimoTicketLabel.textContent = `Ver ticket ${venta.folio}`;
+          btnUltimoTicket.style.display = "inline-flex";
+        }
+        if (autoPrintToggle && autoPrintToggle.checked) {
+          imprimirTicketDirecto(venta.id);
+        }
         carrito = [];
         montoRecibidoInput.value = "";
         renderCarrito();
@@ -486,6 +540,9 @@
     // Pantalla completa
     function sincronizarFullscreenUI() {
       const activo = Boolean(document.fullscreenElement);
+      if (btnFullscreenLabel) {
+        btnFullscreenLabel.textContent = activo ? "Salir pantalla" : "Pantalla completa";
+      }
       const iconEl = btnFullscreen ? btnFullscreen.querySelector("svg, i") : null;
       if (iconEl) {
         iconEl.setAttribute("data-lucide", activo ? "minimize-2" : "maximize-2");
@@ -614,6 +671,24 @@
     });
 
     btnCobrar.addEventListener("click", cobrarVenta);
+    if (btnUltimoTicket) {
+      btnUltimoTicket.addEventListener("click", () => {
+        if (ultimoTicketId) previsualizarTicket(ultimoTicketId);
+      });
+    }
+    if (btnImprimirModalTicket) {
+      btnImprimirModalTicket.addEventListener("click", () => {
+        if (ticketPreviewFrame && ticketPreviewFrame.contentWindow) {
+          ticketPreviewFrame.contentWindow.focus();
+          ticketPreviewFrame.contentWindow.print();
+        }
+      });
+    }
+    document.getElementById("cerrar-modal-ticket").addEventListener("click", cerrarModalTicket);
+    document.getElementById("cancelar-modal-ticket").addEventListener("click", cerrarModalTicket);
+    modalTicket.addEventListener("click", (e) => {
+      if (e.target === modalTicket) cerrarModalTicket();
+    });
     btnLimpiar.addEventListener("click", () => {
       carrito = [];
       montoRecibidoInput.value = "";
@@ -680,6 +755,11 @@
     }
 
     historialTbody.addEventListener("click", (e) => {
+      const ticketBtn = e.target.closest("[data-ticket-id]");
+      if (ticketBtn) {
+        previsualizarTicket(Number(ticketBtn.dataset.ticketId));
+        return;
+      }
       const btn = e.target.closest("[data-anular-id]");
       if (!btn) return;
       ventaAAnular = {
@@ -722,6 +802,7 @@
       }
 
       if (e.key === "Escape") {
+        if (modalTicket && modalTicket.classList.contains("open")) { cerrarModalTicket(); return; }
         if (modalCantidad.classList.contains("open")) { cerrarModalCantidad(); return; }
         if (modalAtajos.classList.contains("open")) { cerrarModalAtajos(); return; }
         if (modalCaja.classList.contains("open")) { cerrarModalCaja(); return; }
@@ -741,6 +822,7 @@
       }
 
       const algunModalAbierto =
+        (modalTicket && modalTicket.classList.contains("open")) ||
         modalCantidad.classList.contains("open") ||
         modalAtajos.classList.contains("open") ||
         modalCaja.classList.contains("open") ||

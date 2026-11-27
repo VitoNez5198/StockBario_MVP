@@ -138,3 +138,44 @@ def test_vista_html_pos_protegida():
         assert res_pos.status_code == 200
         assert "Meson (Cobro)" in res_pos.text
         assert "Historial del dia" in res_pos.text
+        assert "Inventario" in res_pos.text
+        assert "Libreta Fiados" in res_pos.text
+        assert "Compras" in res_pos.text
+        assert "Caja Z" in res_pos.text
+
+
+def test_ticket_termico_80mm():
+    with TestClient(app) as client:
+        _cerrar_cajas_abiertas()
+
+        usuarios = client.get("/api/v1/auth/usuarios").json()
+        admin = next(u for u in usuarios if u["username"] == "admin")
+        assert client.post(
+            "/api/v1/auth/login",
+            json={"usuario_id": admin["id"], "pin": "1234"},
+        ).status_code == 200
+
+        assert client.post("/api/v1/pos/caja/abrir", json={"fondo_inicial": 10000}).status_code == 201
+        productos = client.get("/api/v1/pos/productos").json()
+        prod = next(p for p in productos if not p["bloqueado_venta"])
+
+        res_venta = client.post(
+            "/api/v1/pos/ventas",
+            json={
+                "metodo_pago": "EFECTIVO",
+                "monto_recibido": prod["precio_venta"],
+                "items": [{"producto_id": prod["id"], "cantidad": 1}],
+            },
+        )
+        assert res_venta.status_code == 201
+        venta = res_venta.json()
+
+        res_ticket = client.get(f"/pos/ticket/{venta['id']}")
+        assert res_ticket.status_code == 200
+        assert venta["folio"] in res_ticket.text
+        assert "COMPROBANTE INTERNO" in res_ticket.text
+        assert "80mm" in res_ticket.text
+
+        res_embed = client.get(f"/pos/ticket/{venta['id']}", params={"embed": "1"})
+        assert res_embed.status_code == 200
+        assert venta["folio"] in res_embed.text

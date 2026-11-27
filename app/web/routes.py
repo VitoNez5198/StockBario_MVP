@@ -1,4 +1,6 @@
+from datetime import timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Cookie, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import SESSION_COOKIE_NAME, read_session_token
 from app.models import Almacen, RolUsuario, Usuario
-from app.services.pos_service import obtener_caja_abierta
+from app.services.pos_service import obtener_caja_abierta, obtener_venta_con_detalle
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -96,6 +98,41 @@ def pos_page(
             "almacen": almacen,
             "active_page": "pos",
             "caja_abierta": caja_abierta,
+        },
+    )
+
+
+def _formatear_fecha_chile(dt) -> str:
+    try:
+        tz = ZoneInfo("America/Santiago")
+    except ZoneInfoNotFoundError:
+        tz = timezone(timedelta(hours=-3))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(tz).strftime("%d/%m/%Y %H:%M")
+
+
+@router.get("/pos/ticket/{venta_id}", response_class=HTMLResponse)
+def pos_ticket_page(
+    venta_id: int,
+    request: Request,
+    embed: bool = False,
+    db: Session = Depends(get_db),
+    sb_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+):
+    usuario, almacen = _get_session_user(db, sb_session)
+    if not usuario:
+        return RedirectResponse(url="/login", status_code=302)
+    venta = obtener_venta_con_detalle(db, usuario.almacen_id, venta_id)
+    return templates.TemplateResponse(
+        request,
+        "ticket_80mm.html",
+        {
+            "usuario": usuario,
+            "almacen": almacen,
+            "venta": venta,
+            "embed": embed,
+            "fecha_local": _formatear_fecha_chile(venta.creada_en),
         },
     )
 

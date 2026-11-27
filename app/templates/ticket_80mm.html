@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket {{ venta.folio }} - StockBarrio</title>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 2mm;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Courier New", Consolas, monospace;
+      background: #e2e8f0;
+      color: #111111;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .toolbar {
+      width: 80mm;
+      max-width: 100%;
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 5px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #0f172a;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #059669;
+      border-color: #059669;
+      color: #ffffff;
+    }
+
+    .ticket {
+      width: 80mm;
+      max-width: 100%;
+      background: #ffffff;
+      padding: 5mm 4mm;
+      border: 1px solid #cbd5e1;
+    }
+
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .bold { font-weight: 700; }
+
+    .store-name {
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .legal-note {
+      margin-top: 6px;
+      padding: 3px 4px;
+      border: 1px dashed #333333;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .anulada-banner {
+      margin-top: 6px;
+      padding: 4px;
+      background: #111111;
+      color: #ffffff;
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .divider {
+      border-top: 1px dashed #333333;
+      margin: 7px 0;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+    }
+
+    th {
+      text-align: left;
+      border-bottom: 1px dashed #333333;
+      padding-bottom: 3px;
+      font-size: 10.5px;
+    }
+
+    td {
+      padding: 4px 0;
+      vertical-align: top;
+    }
+
+    .col-cant { width: 18%; }
+    .col-prod { width: 54%; padding-right: 4px; }
+    .col-sub { width: 28%; text-align: right; }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .footer-note {
+      margin-top: 8px;
+      font-size: 10.5px;
+      text-align: center;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+        display: block;
+      }
+      .no-print { display: none !important; }
+      .ticket {
+        border: none;
+        padding: 2mm 0;
+        width: 72mm;
+        max-width: 72mm;
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+<body {% if embed %}style="background:transparent; padding:8px;"{% endif %}>
+  {% if not embed %}
+  <div class="toolbar no-print">
+    <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir / PDF</button>
+    <button type="button" class="btn" onclick="window.close()">Cerrar</button>
+  </div>
+  {% endif %}
+
+  <article class="ticket">
+    <div class="center">
+      <div class="store-name">{{ almacen.nombre if almacen else 'StockBarrio' }}</div>
+      {% if almacen and almacen.direccion %}
+      <div style="font-size:11px;">{{ almacen.direccion }}</div>
+      {% endif %}
+      {% if almacen and almacen.telefono %}
+      <div style="font-size:11px;">Tel: {{ almacen.telefono }}</div>
+      {% endif %}
+    </div>
+
+    <div class="legal-note">COMPROBANTE INTERNO - NO VALIDO COMO BOLETA SII</div>
+
+    {% if venta.estado == 'ANULADA' %}
+    <div class="anulada-banner">VENTA ANULADA</div>
+    {% endif %}
+
+    <div class="divider"></div>
+
+    <div class="meta-row">
+      <span class="bold">Folio:</span>
+      <span>{{ venta.folio }}</span>
+    </div>
+    <div class="meta-row">
+      <span class="bold">Fecha:</span>
+      <span>{{ fecha_local }}</span>
+    </div>
+    <div class="meta-row">
+      <span class="bold">Cajero:</span>
+      <span>{{ venta.usuario.nombre if venta.usuario else usuario.nombre }}</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="col-cant">Cant</th>
+          <th class="col-prod">Producto</th>
+          <th class="col-sub">Subt.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in venta.items %}
+        <tr>
+          <td class="col-cant">{{ '%g' % item.cantidad }}</td>
+          <td class="col-prod">{{ item.producto.nombre if item.producto else 'Producto' }}</td>
+          <td class="col-sub">${{ '{:,}'.format(item.subtotal).replace(',', '.') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="divider"></div>
+
+    <div class="total-row">
+      <span>TOTAL</span>
+      <span>${{ '{:,}'.format(venta.total).replace(',', '.') }}</span>
+    </div>
+
+    <div class="meta-row" style="margin-top:4px;">
+      <span>Medio de pago:</span>
+      <span class="bold">{{ venta.metodo_pago }}</span>
+    </div>
+
+    {% if venta.metodo_pago == 'EFECTIVO' and venta.monto_recibido is not none %}
+    <div class="meta-row">
+      <span>Efectivo recibido:</span>
+      <span>${{ '{:,}'.format(venta.monto_recibido).replace(',', '.') }}</span>
+    </div>
+    <div class="meta-row">
+      <span>Vuelto:</span>
+      <span>${{ '{:,}'.format(venta.vuelto).replace(',', '.') }}</span>
+    </div>
+    {% endif %}
+
+    <div class="divider"></div>
+    <p class="footer-note">Gracias por su compra · StockBarrio 80mm</p>
+  </article>
+</body>
+</html>

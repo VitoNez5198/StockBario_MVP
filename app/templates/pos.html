@@ -14,77 +14,8 @@
 </head>
 <body>
   <div class="pos-shell">
-    <!-- 1. Rail izquierdo -->
-    <aside class="pos-rail" aria-label="Navegacion principal">
-      <div class="rail-stack">
-        <a href="/" class="rail-brand" title="Volver al Resumen">SB</a>
-
-        <button
-          type="button"
-          id="tab-meson"
-          class="rail-btn active"
-          title="Meson (Cobro)"
-          aria-label="Meson (Cobro)"
-        >
-          <i data-lucide="shopping-cart"></i>
-        </button>
-
-        <button
-          type="button"
-          id="tab-historial"
-          class="rail-btn"
-          title="Historial del dia"
-          aria-label="Historial del dia"
-        >
-          <i data-lucide="receipt"></i>
-        </button>
-
-        <a href="/inventario" class="rail-btn" title="Inventario">
-          <i data-lucide="package"></i>
-        </a>
-
-        <a href="/fiados" class="rail-btn" title="Libreta de Fiados">
-          <i data-lucide="book-open"></i>
-        </a>
-
-        <a href="/compras" class="rail-btn" title="Compras y Proveedores">
-          <i data-lucide="truck"></i>
-        </a>
-
-        <a href="/caja" class="rail-btn" title="Caja Z">
-          <i data-lucide="wallet"></i>
-        </a>
-      </div>
-
-      <div class="rail-stack">
-        <button type="button" id="theme-toggle" class="rail-btn" title="Cambiar tema">
-          <span data-icon="moon" style="display:inline-flex;"><i data-lucide="moon"></i></span>
-          <span data-icon="sun" style="display:none;"><i data-lucide="sun"></i></span>
-        </button>
-
-        <button type="button" id="btn-atajos" class="rail-btn" title="Atajos de teclado [F1]">
-          <i data-lucide="keyboard"></i>
-        </button>
-
-        <button type="button" id="btn-fullscreen" class="rail-btn" title="Pantalla completa">
-          <i data-lucide="maximize-2"></i>
-        </button>
-
-        {% if usuario and usuario.rol == 'ADMIN' %}
-        <a href="/usuarios" class="rail-btn" title="Usuarios y configuracion">
-          <i data-lucide="settings"></i>
-        </a>
-        {% endif %}
-
-        <button type="button" id="logout-btn" class="rail-btn" title="Cambiar turno">
-          <i data-lucide="log-out"></i>
-        </button>
-
-        <span class="rail-user-badge" title="{{ usuario.nombre }} ({{ usuario.rol }})">
-          {{ usuario.nombre[:2]|upper }}
-        </span>
-      </div>
-    </aside>
+    <!-- 1. Menu lateral unificado -->
+    {% include "_sidebar.html" %}
 
     <!-- 2. Sidebar de categorias -->
     <aside class="pos-cats" aria-label="Categorias de productos">
@@ -112,8 +43,32 @@
       </div>
     </aside>
 
-    <!-- 3. Centro: Buscador + grilla o historial -->
+    <!-- 3. Centro: barra superior de modos + buscador/grilla o historial -->
     <main class="pos-center">
+      <div class="pos-center-bar">
+        <div class="pos-tabs" role="tablist">
+          <button type="button" id="tab-meson" class="pos-tab active" role="tab" aria-selected="true">
+            <i data-lucide="shopping-cart"></i>
+            Meson (Cobro)
+          </button>
+          <button type="button" id="tab-historial" class="pos-tab" role="tab" aria-selected="false">
+            <i data-lucide="receipt"></i>
+            Historial del dia
+          </button>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" id="btn-atajos" class="pos-btn-sec" title="Atajos de teclado [F1]">
+            <i data-lucide="keyboard"></i>
+            Atajos <span class="kbd-inline">F1</span>
+          </button>
+          <button type="button" id="btn-fullscreen" class="pos-btn-sec" title="Pantalla completa">
+            <i data-lucide="maximize-2"></i>
+            <span id="btn-fullscreen-label">Pantalla completa</span>
+          </button>
+        </div>
+      </div>
+
       <section id="panel-meson" style="display:flex; flex-direction:column; gap:16px; min-height:0;">
         <div class="pos-search-bar">
           <i data-lucide="scan-barcode"></i>
@@ -244,11 +199,49 @@
           </div>
         </div>
 
+        <label class="auto-print-row">
+          <input type="checkbox" id="auto-print-toggle" checked>
+          <span>Imprimir ticket al cobrar</span>
+        </label>
+
         <button type="button" id="btn-cobrar" class="btn-cobrar" disabled>
           Cobrar <span class="kbd-inline kbd-on-accent">F9</span>
         </button>
+
+        <button type="button" id="btn-ultimo-ticket" class="pos-btn-sec" style="display:none; width:100%; justify-content:center;">
+          <i data-lucide="printer"></i>
+          <span id="btn-ultimo-ticket-label">Ver ultimo ticket</span>
+        </button>
       </div>
     </aside>
+  </div>
+
+  <!-- Iframe oculto para impresion directa sin salir de pantalla completa -->
+  <iframe id="print-frame" title="Impresion ticket 80mm" style="position:fixed; width:0; height:0; border:0; visibility:hidden;"></iframe>
+
+  <!-- Modal previsualizacion de ticket 80mm -->
+  <div class="modal-backdrop" id="modal-ticket">
+    <div class="modal-card" style="max-width:400px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Comprobante 80mm</h2>
+        <button type="button" class="modal-close" id="cerrar-modal-ticket" title="Cerrar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <iframe
+        id="ticket-preview-frame"
+        title="Vista previa ticket 80mm"
+        style="width:100%; height:440px; border:1px solid var(--pos-border); border-radius:6px; background:#e2e8f0;"
+      ></iframe>
+      <div class="modal-footer">
+        <button type="button" class="pos-btn-sec" id="cancelar-modal-ticket">
+          Cerrar <span class="kbd-inline">Esc</span>
+        </button>
+        <button type="button" class="btn-cobrar" id="btn-imprimir-modal-ticket" style="width:auto; padding:8px 16px;">
+          Imprimir / PDF
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Modal rapido de cantidad -->
