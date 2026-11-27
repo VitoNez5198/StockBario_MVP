@@ -15,10 +15,10 @@
     })();
   </script>
   <link rel="stylesheet" href="/static/css/base.css?v=3">
-  <link rel="stylesheet" href="/static/css/pos.css?v=2">
+  <link rel="stylesheet" href="/static/css/pos.css?v=3">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   <script src="/static/js/ui.js?v=3" defer></script>
-  <script src="/static/js/pos.js?v=2" defer></script>
+  <script src="/static/js/pos.js?v=3" defer></script>
 </head>
 <body>
   <div class="pos-shell">
@@ -184,6 +184,9 @@
             <button type="button" class="pay-btn" data-method="TRANSFERENCIA">
               Transf. <span class="kbd-inline">Alt+3</span>
             </button>
+            <button type="button" class="pay-btn" data-method="FIADO">
+              Fiado <span class="kbd-inline">Alt+4</span>
+            </button>
           </div>
         </div>
 
@@ -204,6 +207,16 @@
           <div>
             <span class="cash-field-label">Vuelto</span>
             <div id="vuelto-valor" class="vuelto-box">$0</div>
+          </div>
+        </div>
+
+        <div id="fiado-box" class="fiado-dock">
+          <label class="cash-field-label" for="fiado-cliente">Cliente fiado</label>
+          <select id="fiado-cliente" class="fiado-select">
+            <option value="">Seleccionar cliente...</option>
+          </select>
+          <div id="fiado-cupo-info" class="fiado-cupo-info">
+            Selecciona un vecino para validar su cupo disponible.
           </div>
         </div>
 
@@ -306,7 +319,7 @@
         </div>
         <div class="shortcut-row">
           <span>Cambiar medio de pago</span>
-          <span><span class="kbd-pill">Alt</span> + <span class="kbd-pill">1</span> <span class="kbd-pill">2</span> <span class="kbd-pill">3</span></span>
+          <span><span class="kbd-pill">Alt</span> + <span class="kbd-pill">1</span> <span class="kbd-pill">2</span> <span class="kbd-pill">3</span> <span class="kbd-pill">4</span></span>
         </div>
         <div class="shortcut-row">
           <span>Ir a efectivo recibido</span>

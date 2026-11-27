@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Libreta de Fiados - StockBarrio{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/fiados.css?v=1">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Libreta de Fiados</h1>
+    <p class="page-subtitle">Cuentas corrientes de vecinos, cupos de credito y registro de abonos de {{ almacen.nombre }}.</p>
+  </div>
+  {% if es_admin %}
+  <button type="button" id="btn-nuevo-cliente" class="btn btn-primary">
+    <i data-lucide="user-plus"></i>
+    Nuevo cliente
+  </button>
+  {% endif %}
+</div>
+
+<section class="grid-3 fiado-kpis" aria-label="Resumen de fiados">
+  <div class="card fiado-kpi-card kpi-warn">
+    <span class="fiado-kpi-label">Deuda total en calle</span>
+    <span class="fiado-kpi-value" id="kpi-deuda-total">-</span>
+  </div>
+  <div class="card fiado-kpi-card">
+    <span class="fiado-kpi-label">Clientes con deuda</span>
+    <span class="fiado-kpi-value" id="kpi-clientes-deuda">-</span>
+  </div>
+  <div class="card fiado-kpi-card">
+    <span class="fiado-kpi-label">Cupo total habilitado</span>
+    <span class="fiado-kpi-value" id="kpi-cupo-total">-</span>
+  </div>
+</section>
+
+<section class="card fiado-filters" aria-label="Filtros de clientes">
+  <div class="fiado-search-wrap">
+    <i data-lucide="search"></i>
+    <input class="form-input" id="fiado-search" type="search" placeholder="Buscar por nombre, apodo/RUT o telefono...">
+  </div>
+
+  <div class="fiado-checks">
+    <label class="fiado-check-label">
+      <input type="checkbox" id="fiado-solo-deuda">
+      Solo con deuda
+    </label>
+    <label class="fiado-check-label">
+      <input type="checkbox" id="fiado-ver-inactivos">
+      Ver inactivos
+    </label>
+  </div>
+</section>
+
+<section class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Deuda / Cupo</th>
+          <th>Disponible</th>
+          <th style="width: 260px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="fiados-tbody">
+        <tr>
+          <td colspan="4" style="text-align:center; color:var(--text-muted); padding:24px;">
+            Cargando libreta de fiados...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="modal-backdrop" id="modal-cliente">
+  <div class="modal-card fiado-modal-wide">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-cliente-titulo">Nuevo cliente</h2>
+      <button type="button" class="btn-icon" id="modal-cliente-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-cliente">
+      <input type="hidden" id="cli-id">
+      <div class="fiado-form-grid">
+        <div class="form-group fiado-col-span-2">
+          <label class="form-label" for="cli-nombre">Nombre completo</label>
+          <input class="form-input" id="cli-nombre" type="text" required minlength="2" maxlength="120" placeholder="Ej: Sra. Rosa Morales">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cli-apodo">RUT o apodo (opcional)</label>
+          <input class="form-input" id="cli-apodo" type="text" maxlength="40" placeholder="Ej: Vecina Pasaje 3">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cli-telefono">Telefono (opcional)</label>
+          <input class="form-input tabular" id="cli-telefono" type="tel" maxlength="30" placeholder="Ej: +56 9 1234 5678">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cli-direccion">Direccion (opcional)</label>
+          <input class="form-input" id="cli-direccion" type="text" maxlength="200" placeholder="Ej: Pasaje 3 #114">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cli-limite">Limite de credito ($)</label>
+          <input class="form-input tabular" id="cli-limite" type="number" min="0" step="100" value="20000" required>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-cliente-cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-abono">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" id="modal-abono-titulo">Registrar abono</h2>
+        <p class="fiado-form-hint" id="modal-abono-subtitulo"></p>
+      </div>
+      <button type="button" class="btn-icon" id="modal-abono-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-abono">
+      <input type="hidden" id="abono-cli-id">
+      <div class="form-group">
+        <label class="form-label" for="abono-monto">Monto a abonar ($)</label>
+        <div class="fiado-amount-row">
+          <input class="form-input tabular" id="abono-monto" type="number" min="1" step="1" required placeholder="0">
+          <button type="button" class="btn btn-secondary" id="btn-pagar-todo" style="white-space:nowrap;">
+            Pagar todo
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="abono-metodo">Medio de pago</label>
+        <select class="form-select" id="abono-metodo">
+          <option value="EFECTIVO">Efectivo</option>
+          <option value="DEBITO">Debito</option>
+          <option value="TRANSFERENCIA">Transferencia</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="abono-obs">Observacion (opcional)</label>
+        <input class="form-input" id="abono-obs" type="text" maxlength="200" placeholder="Ej: Abono de fin de mes">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-abono-cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Confirmar abono</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-historial">
+  <div class="modal-card fiado-modal-wide">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" id="modal-hist-titulo">Historial de cuenta</h2>
+        <p class="fiado-form-hint" id="modal-hist-subtitulo"></p>
+      </div>
+      <button type="button" class="btn-icon" id="modal-hist-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Monto</th>
+            <th>Detalle</th>
+            <th>Cajero</th>
+          </tr>
+        </thead>
+        <tbody id="modal-hist-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="modal-hist-aceptar">Cerrar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.FIADOS_CONFIG = {
+    esAdmin: {{ 'true' if es_admin else 'false' }}
+  };
+</script>
+<script src="/static/js/fiados.js?v=1" defer></script>
+{% endblock %}

@@ -20,8 +20,8 @@ Plataforma web de gestión comercial, control de inventario y Punto de Venta (PO
 
 ## Estado actual del MVP
 
-- **Completado:** Autenticación por PIN y roles (`ADMIN`/`CAJERO`), gestión de usuarios, despliegue PostgreSQL en Render, **Punto de Venta (`/pos`)** con comprobante 80mm, e **Inventario (`/inventario`)** con semáforo, tandas opcionales FEFO y trazabilidad de mermas/ajustes.
-- **Pendiente (Sprint 2 y 3):** Libreta de Fiados (`/fiados`), Compras Sugeridas WhatsApp (`/compras`), Caja Z (`/caja`) y Reportes Analíticos (`/reportes`).
+- **Completado:** Autenticación por PIN y roles (`ADMIN`/`CAJERO`), gestión de usuarios, despliegue PostgreSQL en Render, **Punto de Venta (`/pos`)** con comprobante 80mm y cobro Fiado (`Alt+4`), **Inventario (`/inventario`)** con semáforo, tandas opcionales FEFO y trazabilidad de mermas/ajustes, y **Libreta de Fiados (`/fiados`)** con cuentas corrientes, cupos, abonos e historial por cliente.
+- **Pendiente (Sprint 2 y 3):** Compras Sugeridas WhatsApp (`/compras`), Caja Z (`/caja`) y Reportes Analíticos (`/reportes`).
 
 ---
 

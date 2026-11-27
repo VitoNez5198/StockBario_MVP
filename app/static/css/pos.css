@@ -709,7 +709,7 @@ body.pos-fullscreen .sidebar {
   border-radius: 6px;
   padding: 5px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
 }
 
@@ -735,6 +735,43 @@ body.pos-fullscreen .sidebar {
   background: var(--pos-panel);
   border-color: var(--pos-border);
   color: var(--pos-text);
+}
+
+.fiado-dock {
+  border-top: 1px solid var(--pos-border);
+  padding-top: 9px;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fiado-select {
+  width: 100%;
+  background: var(--pos-panel);
+  border: 1px solid var(--pos-border);
+  border-radius: 4px;
+  padding: 7px 9px;
+  color: var(--pos-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+}
+
+.fiado-select:focus {
+  border-color: var(--pos-accent);
+}
+
+.fiado-cupo-info {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--pos-muted);
+}
+
+.fiado-cupo-info.error {
+  color: var(--pos-expired-ink);
+  background: var(--pos-expired-bg);
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 .cash-dock {

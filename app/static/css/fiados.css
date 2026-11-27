@@ -1,0 +1,155 @@
+.fiado-kpis {
+  margin-bottom: 18px;
+}
+
+.fiado-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fiado-kpi-card.kpi-warn {
+  border-left: 3px solid var(--warn);
+}
+
+.fiado-kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fiado-kpi-value {
+  font-family: "Fragment Mono", ui-monospace, monospace;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.fiado-kpi-card.kpi-warn .fiado-kpi-value {
+  color: var(--warn);
+}
+
+.fiado-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.fiado-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fiado-search-wrap svg {
+  position: absolute;
+  left: 11px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.fiado-search-wrap .form-input {
+  padding-left: 34px;
+}
+
+.fiado-checks {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.fiado-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.fiado-check-label input {
+  accent-color: var(--brand);
+}
+
+.fiado-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fiado-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.fiado-bar {
+  width: 100%;
+  max-width: 190px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.fiado-bar-fill {
+  height: 100%;
+  background: var(--ok);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.fiado-bar-fill.warn { background: var(--warn); }
+.fiado-bar-fill.danger { background: var(--danger); }
+
+.fiado-modal-wide {
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.fiado-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+
+.fiado-col-span-2 {
+  grid-column: span 2;
+}
+
+.fiado-amount-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.fiado-form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.fiado-row-inactive {
+  opacity: 0.62;
+}
+
+@media (max-width: 720px) {
+  .fiado-filters,
+  .fiado-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .fiado-col-span-2 {
+    grid-column: span 1;
+  }
+}

@@ -7,7 +7,16 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.security import hash_pin
-from app.models import Almacen, Categoria, LoteProducto, Producto, Proveedor, RolUsuario, Usuario
+from app.models import (
+    Almacen,
+    Categoria,
+    Cliente,
+    LoteProducto,
+    Producto,
+    Proveedor,
+    RolUsuario,
+    Usuario,
+)
 
 
 def _sync_missing_columns() -> None:
@@ -152,6 +161,38 @@ def _sync_lotes_iniciales(db: Session) -> None:
             )
 
 
+def _seed_clientes_iniciales(db: Session, almacen_id: int) -> None:
+    existe = db.scalar(
+        select(Cliente.id).where(Cliente.almacen_id == almacen_id).limit(1)
+    )
+    if existe is not None:
+        return
+    db.add_all(
+        [
+            Cliente(
+                almacen_id=almacen_id,
+                nombre="Sra. Rosa Morales",
+                rut_o_apodo="Vecina Pasaje 3",
+                telefono="+56991234567",
+                direccion="Pasaje Los Aromos 114",
+                limite_credito=30000,
+                deuda_actual=0,
+                activo=True,
+            ),
+            Cliente(
+                almacen_id=almacen_id,
+                nombre="Don Pedro Soto",
+                rut_o_apodo="Maestro Taller",
+                telefono="+56997654321",
+                direccion="Av. Central 482",
+                limite_credito=20000,
+                deuda_actual=0,
+                activo=True,
+            ),
+        ]
+    )
+
+
 def init_db() -> None:
     """Crea las tablas definidas y siembra datos iniciales si la BD esta vacia."""
     Base.metadata.create_all(bind=engine)
@@ -182,6 +223,7 @@ def init_db() -> None:
             db.add(admin)
 
         _seed_catalogo_inicial(db, almacen.id)
+        _seed_clientes_iniciales(db, almacen.id)
         db.flush()
         _sync_lotes_iniciales(db)
         db.commit()

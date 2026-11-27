@@ -24,6 +24,9 @@
     const ticketDateEl = document.getElementById("ticket-date");
     const payMethodsEl = document.getElementById("pay-methods");
     const efectivoBox = document.getElementById("efectivo-box");
+    const fiadoBox = document.getElementById("fiado-box");
+    const fiadoClienteSelect = document.getElementById("fiado-cliente");
+    const fiadoCupoInfo = document.getElementById("fiado-cupo-info");
     const montoRecibidoInput = document.getElementById("monto-recibido");
     const vueltoValorEl = document.getElementById("vuelto-valor");
     const btnCobrar = document.getElementById("btn-cobrar");
@@ -76,6 +79,7 @@
     }
 
     let productos = [];
+    let clientesFiado = [];
     let carrito = [];
     let categoriaActiva = "TODOS";
     let metodoPago = "EFECTIVO";
@@ -150,10 +154,56 @@
       vueltoValorEl.textContent = formatMoney(vuelto);
     }
 
+    function actualizarInfoFiado() {
+      if (!fiadoCupoInfo || !fiadoClienteSelect) return;
+      const clienteId = Number(fiadoClienteSelect.value || 0);
+      const cliente = clientesFiado.find((c) => c.id === clienteId);
+      const total = calcularTotal();
+
+      if (!cliente) {
+        fiadoCupoInfo.classList.remove("error");
+        fiadoCupoInfo.textContent = clientesFiado.length
+          ? "Selecciona un vecino para validar su cupo disponible."
+          : "No hay clientes activos registrados en Fiados.";
+        return;
+      }
+
+      if (total > cliente.cupo_disponible) {
+        fiadoCupoInfo.classList.add("error");
+        fiadoCupoInfo.textContent = `Excede cupo disponible (${formatMoney(cliente.cupo_disponible)}). Deuda actual: ${formatMoney(cliente.deuda_actual)}.`;
+      } else {
+        fiadoCupoInfo.classList.remove("error");
+        fiadoCupoInfo.textContent = `Disponible: ${formatMoney(cliente.cupo_disponible)} · Deuda: ${formatMoney(cliente.deuda_actual)} / ${formatMoney(cliente.limite_credito)}`;
+      }
+    }
+
+    function renderClientesFiado() {
+      if (!fiadoClienteSelect) return;
+      const prev = fiadoClienteSelect.value;
+      fiadoClienteSelect.innerHTML = '<option value="">Seleccionar cliente...</option>';
+      clientesFiado.forEach((c) => {
+        const opt = document.createElement("option");
+        opt.value = String(c.id);
+        opt.textContent = `${c.nombre} (disp. ${formatMoney(c.cupo_disponible)})`;
+        fiadoClienteSelect.appendChild(opt);
+      });
+      if (prev && clientesFiado.some((c) => String(c.id) === prev)) {
+        fiadoClienteSelect.value = prev;
+      }
+      actualizarInfoFiado();
+    }
+
     function actualizarBotonCobrar() {
+      actualizarInfoFiado();
       const total = calcularTotal();
       const hayItems = carrito.length > 0 && total > 0;
-      btnCobrar.disabled = !cajaAbierta || !hayItems || enviandoVenta;
+      let fiadoInvalido = false;
+      if (metodoPago === "FIADO") {
+        const cliId = Number(fiadoClienteSelect ? fiadoClienteSelect.value : 0);
+        const cli = clientesFiado.find((c) => c.id === cliId);
+        fiadoInvalido = !cli || total > cli.cupo_disponible;
+      }
+      btnCobrar.disabled = !cajaAbierta || !hayItems || enviandoVenta || fiadoInvalido;
     }
 
     function renderCategorias() {
@@ -388,7 +438,11 @@
         btn.classList.toggle("active", btn.dataset.method === metodo);
       });
       efectivoBox.style.display = metodo === "EFECTIVO" ? "grid" : "none";
+      if (fiadoBox) {
+        fiadoBox.style.display = metodo === "FIADO" ? "flex" : "none";
+      }
       actualizarVuelto();
+      actualizarBotonCobrar();
     }
 
     function cambiarTab(tab) {
@@ -404,14 +458,17 @@
 
     async function cargarEstadoInicial() {
       try {
-        const [caja, prods] = await Promise.all([
+        const [caja, prods, clientes] = await Promise.all([
           window.StockBarrio.apiFetch("/api/v1/pos/caja-actual"),
           window.StockBarrio.apiFetch("/api/v1/pos/productos"),
+          window.StockBarrio.apiFetch("/api/v1/fiados/clientes").catch(() => []),
         ]);
         actualizarEstadoCaja(caja);
         productos = prods;
+        clientesFiado = clientes;
         renderCategorias();
         renderProductos();
+        renderClientesFiado();
       } catch (err) {
         window.StockBarrio.showToast(err.message, "error");
       }
@@ -477,12 +534,20 @@
 
       const total = calcularTotal();
       let montoRecibido = null;
+      let clienteId = null;
       if (metodoPago === "EFECTIVO") {
         const valorRaw = montoRecibidoInput.value.trim();
         montoRecibido = valorRaw === "" ? total : Number(valorRaw);
         if (montoRecibido < total) {
           window.StockBarrio.showToast("El monto recibido es menor al total", "error");
           montoRecibidoInput.focus();
+          return;
+        }
+      } else if (metodoPago === "FIADO") {
+        clienteId = Number(fiadoClienteSelect ? fiadoClienteSelect.value : 0);
+        if (!clienteId) {
+          window.StockBarrio.showToast("Selecciona un cliente para vender fiado", "warn");
+          if (fiadoClienteSelect) fiadoClienteSelect.focus();
           return;
         }
       }
@@ -495,6 +560,7 @@
           body: JSON.stringify({
             metodo_pago: metodoPago,
             monto_recibido: montoRecibido,
+            cliente_id: clienteId,
             items: carrito.map((i) => ({
               producto_id: i.producto_id,
               cantidad: i.cantidad,
@@ -669,6 +735,10 @@
       const btn = e.target.closest("[data-method]");
       if (btn) setMetodoPago(btn.dataset.method);
     });
+
+    if (fiadoClienteSelect) {
+      fiadoClienteSelect.addEventListener("change", actualizarBotonCobrar);
+    }
 
     montoRecibidoInput.addEventListener("input", actualizarVuelto);
     montoRecibidoInput.addEventListener("keydown", (e) => {
@@ -865,12 +935,13 @@
         return;
       }
 
-      if ((e.altKey && ["1", "2", "3"].includes(e.key)) || (!escribiendo && ["1", "2", "3"].includes(e.key))) {
+      if ((e.altKey && ["1", "2", "3", "4"].includes(e.key)) || (!escribiendo && ["1", "2", "3", "4"].includes(e.key))) {
         if (panelMeson.style.display !== "none") {
           e.preventDefault();
           if (e.key === "1") setMetodoPago("EFECTIVO");
           if (e.key === "2") setMetodoPago("DEBITO");
           if (e.key === "3") setMetodoPago("TRANSFERENCIA");
+          if (e.key === "4") setMetodoPago("FIADO");
         }
       }
     });
