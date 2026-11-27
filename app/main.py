@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.inventario import router as inventario_router
 from app.api.v1.pos import router as pos_router
 from app.core.config import get_settings
 from app.core.database import check_database_connection
@@ -34,6 +35,7 @@ register_error_handlers(app)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(auth_router)
 app.include_router(pos_router)
+app.include_router(inventario_router)
 
 
 @app.get("/api/v1/health", tags=["Sistema"])

@@ -161,8 +161,30 @@ def usuarios_page(
     )
 
 
+@router.get("/inventario", response_class=HTMLResponse)
+def inventario_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    sb_session: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+):
+    usuario, almacen = _get_session_user(db, sb_session)
+    if not usuario:
+        return RedirectResponse(url="/login", status_code=302)
+    caja_abierta = obtener_caja_abierta(db, usuario.almacen_id)
+    return templates.TemplateResponse(
+        request,
+        "inventario.html",
+        {
+            "usuario": usuario,
+            "almacen": almacen,
+            "active_page": "inventario",
+            "caja_abierta": caja_abierta,
+            "es_admin": usuario.rol == RolUsuario.ADMIN.value,
+        },
+    )
+
+
 MODULOS_SPRINT_2 = {
-    "inventario": ("Inventario y Semaforo", "Control de existencias, vencimientos y mermas.", False),
     "fiados": ("Libreta de Fiados", "Cuentas corrientes de vecinos, cupos y abonos.", False),
     "compras": ("Compras Sugeridas", "Reposicion por proveedor lista para enviar por WhatsApp.", False),
     "caja": ("Caja y Arqueo Z", "Apertura de turno, medios de pago y cierre diario.", False),

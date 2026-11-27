@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -24,17 +24,12 @@ from app.schemas.pos import (
     ProductoPosPublico,
     VentaPublica,
 )
-
-
-def clasificar_vencimiento(fecha_vencimiento: date | None) -> tuple[str, bool]:
-    if fecha_vencimiento is None:
-        return "SIN_FECHA", False
-    hoy = date.today()
-    if fecha_vencimiento < hoy:
-        return "VENCIDO", True
-    if fecha_vencimiento <= hoy + timedelta(days=7):
-        return "POR_VENCER", False
-    return "OPTIMO", False
+from app.services.lotes_service import (
+    clasificar_vencimiento,
+    descontar_fefo,
+    evaluar_estado_producto,
+    restaurar_stock_anulacion,
+)
 
 
 def obtener_caja_abierta(db: Session, almacen_id: int) -> SesionCaja | None:
@@ -74,7 +69,7 @@ def listar_productos_pos(
 ) -> list[ProductoPosPublico]:
     stmt = (
         select(Producto)
-        .options(joinedload(Producto.categoria))
+        .options(joinedload(Producto.categoria), joinedload(Producto.lotes))
         .where(
             Producto.almacen_id == almacen_id,
             Producto.activo.is_(True),
@@ -88,11 +83,11 @@ def listar_productos_pos(
                 Producto.codigo_barras.ilike(termino),
             )
         )
-    productos = db.scalars(stmt.order_by(Producto.nombre.asc())).all()
+    productos = db.scalars(stmt.order_by(Producto.nombre.asc())).unique().all()
 
     resultado = []
     for p in productos:
-        estado_v, bloqueado = clasificar_vencimiento(p.fecha_vencimiento)
+        info = evaluar_estado_producto(p)
         resultado.append(
             ProductoPosPublico(
                 id=p.id,
@@ -101,11 +96,11 @@ def listar_productos_pos(
                 categoria_nombre=p.categoria.nombre if p.categoria else "General",
                 unidad=p.unidad,
                 precio_venta=p.precio_venta,
-                stock_actual=float(p.stock_actual),
+                stock_actual=float(info["stock_vendible"]),
                 stock_minimo=float(p.stock_minimo),
-                fecha_vencimiento=p.fecha_vencimiento,
-                estado_vencimiento=estado_v,
-                bloqueado_venta=bloqueado,
+                fecha_vencimiento=info["proxima_fecha"],
+                estado_vencimiento=info["estado_vencimiento"],
+                bloqueado_venta=info["bloqueado_venta"],
             )
         )
     return resultado
@@ -167,13 +162,19 @@ def registrar_venta(db: Session, usuario: Usuario, data: CrearVentaRequest) -> V
             cantidades_por_id.get(item.producto_id, Decimal("0")) + Decimal(str(item.cantidad))
         )
 
-    productos = db.scalars(
-        select(Producto).where(
-            Producto.id.in_(list(cantidades_por_id.keys())),
-            Producto.almacen_id == usuario.almacen_id,
-            Producto.activo.is_(True),
+    productos = (
+        db.scalars(
+            select(Producto)
+            .options(joinedload(Producto.lotes))
+            .where(
+                Producto.id.in_(list(cantidades_por_id.keys())),
+                Producto.almacen_id == usuario.almacen_id,
+                Producto.activo.is_(True),
+            )
         )
-    ).all()
+        .unique()
+        .all()
+    )
     mapa_productos = {p.id: p for p in productos}
 
     detalles_a_crear: list[tuple[Producto, Decimal, int]] = []
@@ -187,18 +188,17 @@ def registrar_venta(db: Session, usuario: Usuario, data: CrearVentaRequest) -> V
                 detail="Producto no encontrado",
             )
 
-        _, bloqueado = clasificar_vencimiento(producto.fecha_vencimiento)
-        if bloqueado:
+        info = evaluar_estado_producto(producto)
+        if info["bloqueado_venta"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Producto vencido: {producto.nombre}",
             )
 
-        stock_actual = Decimal(str(producto.stock_actual))
-        if stock_actual < cantidad:
+        if info["stock_vendible"] < cantidad:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Stock insuficiente para {producto.nombre}",
+                detail=f"Stock vigente insuficiente para {producto.nombre}",
             )
 
         subtotal = int(round(cantidad * Decimal(producto.precio_venta)))
@@ -259,8 +259,8 @@ def registrar_venta(db: Session, usuario: Usuario, data: CrearVentaRequest) -> V
 
     for producto, cantidad, subtotal in detalles_a_crear:
         stock_ant = Decimal(str(producto.stock_actual))
-        stock_nvo = stock_ant - cantidad
-        producto.stock_actual = stock_nvo
+        descontar_fefo(db, producto, cantidad, solo_vigentes=True)
+        stock_nvo = Decimal(str(producto.stock_actual))
 
         db.add(
             DetalleVenta(
@@ -343,8 +343,8 @@ def anular_venta(db: Session, usuario: Usuario, venta_id: int) -> Venta:
         if producto is not None:
             stock_ant = Decimal(str(producto.stock_actual))
             cant = Decimal(str(item.cantidad))
-            stock_nvo = stock_ant + cant
-            producto.stock_actual = stock_nvo
+            restaurar_stock_anulacion(db, producto, cant)
+            stock_nvo = Decimal(str(producto.stock_actual))
             db.add(
                 MovimientoStock(
                     producto_id=producto.id,

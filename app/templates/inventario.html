@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}Inventario - StockBarrio{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/inventario.css?v=1">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Inventario y Semaforo</h1>
+    <p class="page-subtitle">Control de productos, tandas por vencimiento, mermas y ajustes de {{ almacen.nombre }}.</p>
+  </div>
+  {% if es_admin %}
+  <button type="button" id="btn-nuevo-producto" class="btn btn-primary">
+    <i data-lucide="package-plus"></i>
+    Nuevo producto
+  </button>
+  {% endif %}
+</div>
+
+<section class="grid-4 inv-kpis" aria-label="Resumen de inventario">
+  <button type="button" class="card inv-kpi-card" data-kpi-filter="TODOS">
+    <span class="inv-kpi-label">Productos activos</span>
+    <span class="inv-kpi-value" id="kpi-activos">-</span>
+  </button>
+  <button type="button" class="card inv-kpi-card kpi-warn" data-kpi-filter="STOCK_BAJO">
+    <span class="inv-kpi-label">Stock bajo minimo</span>
+    <span class="inv-kpi-value" id="kpi-bajo">-</span>
+  </button>
+  <button type="button" class="card inv-kpi-card kpi-warn" data-kpi-filter="POR_VENCER">
+    <span class="inv-kpi-label">Por vencer (&le; 7d)</span>
+    <span class="inv-kpi-value" id="kpi-por-vencer">-</span>
+  </button>
+  <button type="button" class="card inv-kpi-card kpi-danger" data-kpi-filter="CON_VENCIDO">
+    <span class="inv-kpi-label">Con stock vencido</span>
+    <span class="inv-kpi-value" id="kpi-vencidos">-</span>
+  </button>
+</section>
+
+<div class="inv-toolbar">
+  <div class="inv-tabs" role="tablist">
+    <button type="button" class="inv-tab active" id="tab-btn-productos" data-tab="productos">
+      <i data-lucide="boxes"></i>
+      Productos
+    </button>
+    <button type="button" class="inv-tab" id="tab-btn-movimientos" data-tab="movimientos">
+      <i data-lucide="history"></i>
+      Movimientos recientes
+    </button>
+  </div>
+</div>
+
+<div id="panel-productos">
+  <section class="card inv-filters" aria-label="Filtros de inventario">
+    <div class="inv-search-wrap">
+      <i data-lucide="search"></i>
+      <input class="form-input" id="inv-search" type="search" placeholder="Buscar por nombre o codigo de barras...">
+    </div>
+
+    <select class="form-select" id="inv-filter-cat" aria-label="Filtrar por categoria">
+      <option value="">Todas las categorias</option>
+    </select>
+
+    <select class="form-select" id="inv-filter-venc" aria-label="Filtrar por semaforo">
+      <option value="">Todo el semaforo</option>
+      <option value="CON_VENCIDO">Con stock vencido</option>
+      <option value="POR_VENCER">Por vencer (&le; 7 dias)</option>
+      <option value="OPTIMO">Optimo (&gt; 7 dias)</option>
+      <option value="SIN_FECHA">Sin fecha</option>
+    </select>
+
+    <div class="inv-checks">
+      <label class="inv-check-label">
+        <input type="checkbox" id="inv-filter-bajo">
+        Solo stock bajo
+      </label>
+      <label class="inv-check-label">
+        <input type="checkbox" id="inv-filter-inactivos">
+        Ver inactivos
+      </label>
+    </div>
+  </section>
+
+  <section class="card" style="padding: 0; overflow: hidden;">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Precios</th>
+            <th>Stock</th>
+            <th>Semaforo y tandas</th>
+            <th style="width: 220px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="inv-productos-tbody">
+          <tr>
+            <td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">
+              Cargando inventario...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div id="panel-movimientos" style="display:none;">
+  <section class="card" style="padding: 0; overflow: hidden;">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Producto</th>
+            <th>Tipo</th>
+            <th>Cambio</th>
+            <th>Stock</th>
+            <th>Motivo</th>
+            <th>Usuario</th>
+          </tr>
+        </thead>
+        <tbody id="inv-movimientos-tbody">
+          <tr>
+            <td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">
+              Cargando movimientos...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="modal-producto">
+  <div class="modal-card inv-modal-wide">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-producto-titulo">Nuevo producto</h2>
+      <button type="button" class="btn-icon" id="modal-producto-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-producto">
+      <input type="hidden" id="prod-id">
+      <div class="inv-form-grid">
+        <div class="form-group inv-col-span-2">
+          <label class="form-label" for="prod-nombre">Nombre del producto</label>
+          <input class="form-input" id="prod-nombre" type="text" required minlength="2" maxlength="150" placeholder="Ej: Leche Entera 1L">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-codigo">Codigo de barras (opcional)</label>
+          <input class="form-input tabular" id="prod-codigo" type="text" maxlength="50" placeholder="Escanear o escribir codigo">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-unidad">Unidad de medida</label>
+          <select class="form-select" id="prod-unidad">
+            <option value="UN">Unidad (UN)</option>
+            <option value="KG">Kilogramo (KG)</option>
+            <option value="PAQ">Paquete (PAQ)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-categoria">Categoria</label>
+          <div class="inv-cat-row">
+            <select class="form-select" id="prod-categoria">
+              <option value="">Sin categoria</option>
+            </select>
+            <button type="button" class="btn btn-secondary" id="btn-toggle-cat" title="Crear categoria rapida" style="white-space:nowrap;">
+              + Nueva
+            </button>
+          </div>
+          <div class="inv-cat-inline" id="cat-inline-box">
+            <input class="form-input" id="cat-nueva-nombre" type="text" maxlength="80" placeholder="Nombre categoria">
+            <button type="button" class="btn btn-primary" id="btn-guardar-cat">Crear</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-proveedor">Proveedor (opcional)</label>
+          <select class="form-select" id="prod-proveedor">
+            <option value="">Sin proveedor (compra presencial)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-costo">Precio costo ($)</label>
+          <input class="form-input tabular" id="prod-costo" type="number" min="0" step="1" value="0" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-venta">Precio venta ($)</label>
+          <input class="form-input tabular" id="prod-venta" type="number" min="1" step="1" required placeholder="Ej: 1290">
+        </div>
+
+        <div class="form-group" id="grupo-stock-inicial">
+          <label class="form-label" for="prod-stock-inicial">Stock inicial</label>
+          <input class="form-input tabular" id="prod-stock-inicial" type="number" min="0" step="any" value="0" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-stock-minimo">Stock minimo de alerta</label>
+          <input class="form-input tabular" id="prod-stock-minimo" type="number" min="0" step="any" value="5" required>
+        </div>
+
+        <div class="form-group inv-col-span-2">
+          <label class="form-label" for="prod-vencimiento">Fecha de vencimiento (opcional, solo perecibles)</label>
+          <input class="form-input tabular" id="prod-vencimiento" type="date">
+          <p class="inv-form-hint" id="prod-vencimiento-hint">
+            Dejar vacio para productos no perecibles. Si manejas varias tandas, usa "Registrar movimiento &gt; Entrada".
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-producto-cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-guardar-producto">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-movimiento">
+  <div class="modal-card inv-modal-wide">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" id="modal-mov-titulo">Movimiento de stock</h2>
+        <p class="inv-form-hint" id="modal-mov-subtitulo"></p>
+      </div>
+      <button type="button" class="btn-icon" id="modal-mov-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="form-movimiento">
+      <input type="hidden" id="mov-prod-id">
+      <div class="inv-form-grid">
+        <div class="form-group">
+          <label class="form-label" for="mov-tipo">Tipo de movimiento</label>
+          <select class="form-select" id="mov-tipo">
+            {% if es_admin %}
+            <option value="ENTRADA">Entrada (nueva compra / reposicion)</option>
+            <option value="MERMA">Merma (vencido, danado o perdida)</option>
+            <option value="AJUSTE">Ajuste manual (conteo fisico)</option>
+            {% else %}
+            <option value="MERMA">Merma (vencido, danado o perdida)</option>
+            {% endif %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="mov-cantidad" id="mov-cantidad-label">Cantidad</label>
+          <input class="form-input tabular" id="mov-cantidad" type="number" min="0" step="any" required placeholder="0">
+        </div>
+
+        <div class="form-group inv-col-span-2" id="mov-venc-group">
+          <label class="form-label" for="mov-vencimiento">Vencimiento de esta tanda (opcional)</label>
+          <input class="form-input tabular" id="mov-vencimiento" type="date">
+          <p class="inv-form-hint">Si ingresas una fecha distinta a las tandas actuales, se creara una tanda separada con descuento automatico FEFO en POS.</p>
+        </div>
+
+        <div class="form-group inv-col-span-2" id="mov-lote-group" style="display:none;">
+          <label class="form-label" for="mov-lote-id">Tanda afectada</label>
+          <select class="form-select" id="mov-lote-id"></select>
+        </div>
+
+        <div class="form-group inv-col-span-2">
+          <label class="form-label" for="mov-motivo">Motivo</label>
+          <input class="form-input" id="mov-motivo" type="text" required minlength="3" maxlength="200" placeholder="Ej: Compra en feria / envase roto / conteo fisico">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-mov-cancelar">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Registrar movimiento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-detalle">
+  <div class="modal-card inv-modal-wide">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" id="modal-det-titulo">Detalle de producto</h2>
+        <p class="inv-form-hint" id="modal-det-subtitulo"></p>
+      </div>
+      <button type="button" class="btn-icon" id="modal-det-cerrar" title="Cerrar">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <div id="modal-det-lotes-box">
+      <div class="inv-section-label">Tandas activas (orden FEFO)</div>
+      <div class="inv-lotes-list" id="modal-det-lotes"></div>
+    </div>
+
+    <div class="inv-section-label">Ultimos movimientos</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Cambio</th>
+            <th>Stock</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody id="modal-det-movs"></tbody>
+      </table>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="modal-det-aceptar">Cerrar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.INVENTARIO_CONFIG = {
+    esAdmin: {{ 'true' if es_admin else 'false' }}
+  };
+</script>
+<script src="/static/js/inventario.js?v=1" defer></script>
+{% endblock %}

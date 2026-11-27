@@ -10,11 +10,18 @@ Plataforma web de gestión comercial, control de inventario y Punto de Venta (PO
 ## Alcance del MVP (alineado con Canvas, Cadena de Valor y Entregable Parte I)
 
 1. **Terminal POS Rápido (`<10s` por venta):** Operación fluida por teclado y lector de código de barras USB 1D/2D, cálculo de vuelto, comprobante interno de 80mm (sin timbraje SII ni Transbank según delimitación) e historial con reimpresión/anulación.
-2. **Inventario & Semáforo de Caducidad:** Trazabilidad completa de movimientos (entradas, salidas, mermas) y alertas preventivas de vencimiento (30 / 15 / 7 días + bloqueo preventivo de productos vencidos en POS).
+2. **Inventario & Semáforo de Caducidad:** Trazabilidad completa de movimientos (entradas, salidas, mermas, ajustes), tandas opcionales por vencimiento con descuento automático **FEFO** en POS y alertas preventivas (≤ 7 días + bloqueo real si no queda stock vigente).
 3. **Libreta Digital de Fiados:** Gestión de vecinos con límite de crédito, validación atómica en caja, historial de deuda y registro de abonos.
 4. **Lista de Compra Sugerida (WhatsApp):** Cálculo automático de reposición `(stock_mínimo × 2) − stock_actual` agrupado por proveedor con copia directa para WhatsApp.
 5. **Caja y Arqueo Z:** Apertura de turno, seguimiento por medio de pago y cierre con cuadratura física.
 6. **Reportes Analíticos y Resumen Diario:** Panel inicial de estado del negocio, rotación de productos, márgenes de ganancia e indicadores de impacto (**ERI** y **TMV**).
+
+---
+
+## Estado actual del MVP
+
+- **Completado:** Autenticación por PIN y roles (`ADMIN`/`CAJERO`), gestión de usuarios, despliegue PostgreSQL en Render, **Punto de Venta (`/pos`)** con comprobante 80mm, e **Inventario (`/inventario`)** con semáforo, tandas opcionales FEFO y trazabilidad de mermas/ajustes.
+- **Pendiente (Sprint 2 y 3):** Libreta de Fiados (`/fiados`), Compras Sugeridas WhatsApp (`/compras`), Caja Z (`/caja`) y Reportes Analíticos (`/reportes`).
 
 ---
 

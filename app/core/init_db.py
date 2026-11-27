@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.security import hash_pin
-from app.models import Almacen, Categoria, Producto, Proveedor, RolUsuario, Usuario
+from app.models import Almacen, Categoria, LoteProducto, Producto, Proveedor, RolUsuario, Usuario
 
 
 def _sync_missing_columns() -> None:
@@ -131,6 +131,27 @@ def _seed_catalogo_inicial(db: Session, almacen_id: int) -> None:
     db.add_all(productos)
 
 
+def _sync_lotes_iniciales(db: Session) -> None:
+    productos = db.scalars(
+        select(Producto).where(
+            Producto.stock_actual > 0,
+            Producto.fecha_vencimiento.is_not(None),
+        )
+    ).all()
+    for prod in productos:
+        existe_lote = db.scalar(
+            select(LoteProducto.id).where(LoteProducto.producto_id == prod.id).limit(1)
+        )
+        if existe_lote is None:
+            db.add(
+                LoteProducto(
+                    producto_id=prod.id,
+                    cantidad_disponible=prod.stock_actual,
+                    fecha_vencimiento=prod.fecha_vencimiento,
+                )
+            )
+
+
 def init_db() -> None:
     """Crea las tablas definidas y siembra datos iniciales si la BD esta vacia."""
     Base.metadata.create_all(bind=engine)
@@ -161,4 +182,6 @@ def init_db() -> None:
             db.add(admin)
 
         _seed_catalogo_inicial(db, almacen.id)
+        db.flush()
+        _sync_lotes_iniciales(db)
         db.commit()

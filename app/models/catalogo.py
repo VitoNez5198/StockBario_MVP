@@ -63,6 +63,23 @@ class Producto(Base):
 
     categoria = relationship("Categoria", back_populates="productos")
     proveedor = relationship("Proveedor", back_populates="productos")
+    lotes = relationship("LoteProducto", back_populates="producto", cascade="all, delete-orphan")
+
+
+class LoteProducto(Base):
+    __tablename__ = "lotes_producto"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"), nullable=False, index=True)
+    cantidad_disponible: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
+    fecha_vencimiento: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    creado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    producto = relationship("Producto", back_populates="lotes")
 
 
 class MovimientoStock(Base):
