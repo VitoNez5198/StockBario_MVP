@@ -2,7 +2,7 @@
   const CLP = new Intl.NumberFormat("es-CL");
 
   function formatMoney(value) {
-    return `$ ${CLP.format(Math.round(value || 0))}`;
+    return `$${CLP.format(Math.round(value || 0))}`;
   }
 
   function escapeHtml(str) {
@@ -16,8 +16,12 @@
   document.addEventListener("DOMContentLoaded", () => {
     const searchInput = document.getElementById("pos-search");
     const productsGrid = document.getElementById("pos-productos");
+    const categoryTabsEl = document.getElementById("category-tabs");
+
     const cartItemsEl = document.getElementById("cart-items");
+    const cartCountEl = document.getElementById("cart-count");
     const cartTotalEl = document.getElementById("cart-total");
+    const ticketDateEl = document.getElementById("ticket-date");
     const payMethodsEl = document.getElementById("pay-methods");
     const efectivoBox = document.getElementById("efectivo-box");
     const montoRecibidoInput = document.getElementById("monto-recibido");
@@ -31,8 +35,8 @@
     const panelHistorial = document.getElementById("panel-historial");
     const historialTbody = document.getElementById("historial-tbody");
 
-    const cajaBanner = document.getElementById("caja-banner");
-    const topbarCajaBadge = document.getElementById("topbar-caja-badge");
+    const cajaStatusText = document.getElementById("caja-status-text");
+    const btnAbrirCaja = document.getElementById("btn-abrir-caja-banner");
     const modalCaja = document.getElementById("modal-abrir-caja");
     const formCaja = document.getElementById("form-abrir-caja");
     const fondoInicialInput = document.getElementById("fondo-inicial");
@@ -53,24 +57,34 @@
     const modalAtajos = document.getElementById("modal-atajos");
     const btnAtajos = document.getElementById("btn-atajos");
     const btnFullscreen = document.getElementById("btn-fullscreen");
-    const btnFullscreenLabel = document.getElementById("btn-fullscreen-label");
 
     let productos = [];
     let carrito = [];
+    let categoriaActiva = "TODOS";
     let metodoPago = "EFECTIVO";
     let cajaAbierta = null;
     let ventaAAnular = null;
     let productoSeleccionado = null;
     let enviandoVenta = false;
 
+    function actualizarRelojTicket() {
+      if (!ticketDateEl) return;
+      const ahora = new Date();
+      const fecha = ahora.toLocaleDateString("es-CL");
+      const hora = ahora.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+      ticketDateEl.textContent = `${fecha} · ${hora}`;
+    }
+
     function actualizarEstadoCaja(caja) {
       cajaAbierta = caja;
-      if (cajaBanner) {
-        cajaBanner.style.display = caja ? "none" : "flex";
+      if (btnAbrirCaja) {
+        btnAbrirCaja.style.display = caja ? "none" : "block";
       }
-      if (topbarCajaBadge) {
-        topbarCajaBadge.textContent = caja ? "Caja abierta" : "Caja sin abrir";
-        topbarCajaBadge.className = `badge ${caja ? "badge-ok" : "badge-neutral"}`;
+      if (cajaStatusText) {
+        const partes = cajaStatusText.textContent.split("·");
+        const nombreUsuario = partes.length > 1 ? partes[1].trim() : "";
+        const etiquetaCaja = caja ? `Caja #${caja.id}` : "Caja sin abrir";
+        cajaStatusText.textContent = nombreUsuario ? `${etiquetaCaja} · ${nombreUsuario}` : etiquetaCaja;
       }
       actualizarBotonCobrar();
     }
@@ -85,7 +99,7 @@
     function actualizarVuelto() {
       const total = calcularTotal();
       if (metodoPago !== "EFECTIVO") {
-        vueltoValorEl.textContent = "$ 0";
+        vueltoValorEl.textContent = "$0";
         return;
       }
       const recibido = Number(montoRecibidoInput.value || 0);
@@ -99,34 +113,51 @@
       btnCobrar.disabled = !cajaAbierta || !hayItems || enviandoVenta;
     }
 
-    function badgeVencimiento(p) {
+    function renderCategorias() {
+      const unicas = [];
+      productos.forEach((p) => {
+        const cat = p.categoria_nombre || "General";
+        if (!unicas.includes(cat)) unicas.push(cat);
+      });
+
+      const botones = ['<button type="button" class="cat-tab' + (categoriaActiva === "TODOS" ? " active" : "") + '" data-cat="TODOS">Todos</button>'];
+      unicas.forEach((cat) => {
+        const active = categoriaActiva === cat ? " active" : "";
+        botones.push(
+          `<button type="button" class="cat-tab${active}" data-cat="${escapeHtml(cat)}">${escapeHtml(cat)}</button>`
+        );
+      });
+      categoryTabsEl.innerHTML = botones.join("");
+    }
+
+    function badgeProducto(p) {
       if (p.estado_vencimiento === "VENCIDO") {
-        return '<span class="badge badge-danger">Vencido</span>';
+        return '<span class="tag-vencido">VENCIDO</span>';
       }
       if (p.estado_vencimiento === "POR_VENCER") {
-        return '<span class="badge badge-warn">Por vencer</span>';
+        return '<span class="tag-por-vencer">POR VENCER</span>';
       }
-      if (p.stock_actual <= p.stock_minimo) {
-        return '<span class="badge badge-warn">Stock bajo</span>';
-      }
-      return '<span class="badge badge-ok">Disponible</span>';
+      return "";
     }
 
     function filtrarProductos() {
       const q = (searchInput.value || "").trim().toLowerCase();
-      if (!q) return productos;
-      return productos.filter(
-        (p) =>
+      return productos.filter((p) => {
+        const cat = p.categoria_nombre || "General";
+        if (categoriaActiva !== "TODOS" && cat !== categoriaActiva) return false;
+        if (!q) return true;
+        return (
           p.nombre.toLowerCase().includes(q) ||
           (p.codigo_barras && p.codigo_barras.toLowerCase().includes(q))
-      );
+        );
+      });
     }
 
     function renderProductos() {
       const lista = filtrarProductos();
       if (!lista.length) {
         productsGrid.innerHTML =
-          '<div class="card" style="grid-column:1/-1; text-align:center; color:var(--text-muted);">No hay productos que coincidan con la busqueda.</div>';
+          '<div class="empty-box">No hay productos que coincidan con el filtro.</div>';
         return;
       }
 
@@ -134,18 +165,19 @@
         .map((p) => {
           const sinStock = p.stock_actual <= 0;
           const bloqueado = p.bloqueado_venta || sinStock;
+          const unidadTxt = p.unidad === "KG" ? " (kg)" : "";
+          const badge = badgeProducto(p);
           return `
             <button type="button" class="product-card ${bloqueado ? "blocked" : ""}" data-prod-id="${p.id}">
-              <div>
-                <div class="product-top">
-                  <span class="product-name">${escapeHtml(p.nombre)}</span>
-                  ${badgeVencimiento(p)}
+              <div class="product-head">
+                <div class="product-title-row">
+                  <span class="product-name">${escapeHtml(p.nombre)}${p.nombre.toLowerCase().includes("kg") ? "" : unidadTxt}</span>
+                  ${badge}
                 </div>
-                <div class="product-code tabular">${escapeHtml(p.codigo_barras || "Sin codigo")}</div>
+                <span class="product-stock">Stock: ${p.stock_actual}</span>
               </div>
-              <div class="product-bottom">
-                <span class="product-price tabular">${formatMoney(p.precio_venta)}</span>
-                <span class="product-stock tabular">${p.stock_actual} ${escapeHtml(p.unidad)}</span>
+              <div class="product-foot">
+                <span class="product-price">${formatMoney(p.precio_venta)}</span>
               </div>
             </button>
           `;
@@ -202,7 +234,7 @@
         .filter((val) => val <= restante)
         .map(
           (val) =>
-            `<button type="button" class="qty-preset-btn tabular" data-preset="${val}">${val} ${escapeHtml(producto.unidad)}</button>`
+            `<button type="button" class="qty-preset-btn" data-preset="${val}">${val} ${escapeHtml(producto.unidad)}</button>`
         )
         .join("");
 
@@ -259,10 +291,13 @@
     }
 
     function renderCarrito() {
+      const totalArticulos = carrito.reduce((acc, i) => acc + (i.unidad === "KG" ? 1 : i.cantidad), 0);
+      cartCountEl.textContent = `Articulos (${Math.round(totalArticulos * 100) / 100})`;
+
       if (!carrito.length) {
         cartItemsEl.innerHTML =
-          '<div class="cart-empty">Escanea o selecciona productos para cobrar.</div>';
-        cartTotalEl.textContent = "$ 0";
+          '<div class="ticket-empty">Escanea o selecciona productos para cobrar.</div>';
+        cartTotalEl.textContent = "$0";
         actualizarVuelto();
         actualizarBotonCobrar();
         return;
@@ -273,25 +308,27 @@
           const subtotal = Math.round(item.cantidad * item.precio_venta);
           const step = item.unidad === "KG" ? "0.1" : "1";
           return `
-            <div class="cart-row" data-item-id="${item.producto_id}">
-              <div class="cart-row-info">
-                <div class="cart-row-name">${escapeHtml(item.nombre)}</div>
-                <div class="cart-row-unit tabular">${formatMoney(item.precio_venta)} / ${escapeHtml(item.unidad)}</div>
+            <div class="ticket-row" data-item-id="${item.producto_id}">
+              <div class="ticket-row-info">
+                <div class="ticket-row-name">${escapeHtml(item.nombre)}</div>
+                <div class="ticket-row-unit">${formatMoney(item.precio_venta)} c/u</div>
               </div>
-              <div class="cart-qty-ctrl">
-                <button type="button" class="qty-btn" data-qty-op="dec">-</button>
-                <input
-                  type="number"
-                  class="qty-input tabular"
-                  min="${step}"
-                  step="${step}"
-                  max="${item.stock_actual}"
-                  value="${item.cantidad}"
-                  data-qty-input
-                >
-                <button type="button" class="qty-btn" data-qty-op="inc">+</button>
+              <div class="ticket-row-right">
+                <div class="qty-ctrl">
+                  <button type="button" class="qty-btn" data-qty-op="dec">-</button>
+                  <input
+                    type="number"
+                    class="qty-input"
+                    min="${step}"
+                    step="${step}"
+                    max="${item.stock_actual}"
+                    value="${item.cantidad}"
+                    data-qty-input
+                  >
+                  <button type="button" class="qty-btn" data-qty-op="inc">+</button>
+                </div>
+                <div class="ticket-row-sub">${formatMoney(subtotal)}</div>
               </div>
-              <div class="cart-row-sub tabular">${formatMoney(subtotal)}</div>
             </div>
           `;
         })
@@ -307,7 +344,7 @@
       payMethodsEl.querySelectorAll(".pay-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.method === metodo);
       });
-      efectivoBox.style.display = metodo === "EFECTIVO" ? "flex" : "none";
+      efectivoBox.style.display = metodo === "EFECTIVO" ? "grid" : "none";
       actualizarVuelto();
     }
 
@@ -315,10 +352,8 @@
       const esMeson = tab === "meson";
       tabMeson.classList.toggle("active", esMeson);
       tabHistorial.classList.toggle("active", !esMeson);
-      tabMeson.setAttribute("aria-selected", esMeson ? "true" : "false");
-      tabHistorial.setAttribute("aria-selected", !esMeson ? "true" : "false");
-      panelMeson.style.display = esMeson ? "grid" : "none";
-      panelHistorial.style.display = esMeson ? "none" : "block";
+      panelMeson.style.display = esMeson ? "flex" : "none";
+      panelHistorial.style.display = esMeson ? "none" : "flex";
       if (!esMeson) {
         cargarHistorial();
       }
@@ -332,6 +367,7 @@
         ]);
         actualizarEstadoCaja(caja);
         productos = prods;
+        renderCategorias();
         renderProductos();
       } catch (err) {
         window.StockBarrio.showToast(err.message, "error");
@@ -343,7 +379,7 @@
         const ventas = await window.StockBarrio.apiFetch("/api/v1/pos/ventas?solo_turno=true");
         if (!ventas.length) {
           historialTbody.innerHTML =
-            '<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:24px;">Sin ventas registradas en este turno.</td></tr>';
+            '<tr><td colspan="8" style="text-align:center; color:var(--pos-muted); padding:24px;">Sin ventas registradas en este turno.</td></tr>';
           return;
         }
         historialTbody.innerHTML = ventas
@@ -357,20 +393,20 @@
               .join(", ");
             const anulada = v.estado === "ANULADA";
             const badgeEstado = anulada
-              ? '<span class="badge badge-danger">Anulada</span>'
-              : '<span class="badge badge-ok">Completada</span>';
+              ? '<span class="badge-state badge-danger">Anulada</span>'
+              : '<span class="badge-state badge-ok">Completada</span>';
             const accion = anulada
-              ? '<span style="color:var(--text-soft); font-size:12px;">-</span>'
-              : `<button type="button" class="btn btn-ghost" data-anular-id="${v.id}" data-anular-folio="${escapeHtml(v.folio)}" data-anular-total="${v.total}" style="padding:5px 10px; font-size:12.5px; color:var(--danger);">Anular</button>`;
+              ? '<span style="color:var(--pos-muted);">-</span>'
+              : `<button type="button" class="pos-btn-danger" data-anular-id="${v.id}" data-anular-folio="${escapeHtml(v.folio)}" data-anular-total="${v.total}" style="padding:5px 10px; font-size:12px;">Anular</button>`;
 
             return `
               <tr>
-                <td class="tabular"><strong>${escapeHtml(v.folio)}</strong></td>
-                <td class="tabular" style="color:var(--text-muted);">${hora}</td>
+                <td class="mono"><strong>${escapeHtml(v.folio)}</strong></td>
+                <td class="mono" style="color:var(--pos-muted);">${hora}</td>
                 <td>${escapeHtml(v.usuario_nombre)}</td>
-                <td style="max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(detalle)}">${escapeHtml(detalle)}</td>
-                <td><span class="badge badge-neutral">${escapeHtml(v.metodo_pago)}</span></td>
-                <td class="tabular"><strong>${formatMoney(v.total)}</strong></td>
+                <td style="max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(detalle)}">${escapeHtml(detalle)}</td>
+                <td><span class="badge-state badge-neutral">${escapeHtml(v.metodo_pago)}</span></td>
+                <td class="mono"><strong>${formatMoney(v.total)}</strong></td>
                 <td>${badgeEstado}</td>
                 <td>${accion}</td>
               </tr>
@@ -437,13 +473,19 @@
       }
     }
 
+    // Categorias
+    categoryTabsEl.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-cat]");
+      if (!btn) return;
+      categoriaActiva = btn.dataset.cat;
+      cambiarTab("meson");
+      renderCategorias();
+      renderProductos();
+    });
+
     // Pantalla completa
     function sincronizarFullscreenUI() {
       const activo = Boolean(document.fullscreenElement);
-      document.body.classList.toggle("pos-fullscreen", activo);
-      if (btnFullscreenLabel) {
-        btnFullscreenLabel.textContent = activo ? "Salir pantalla" : "Pantalla completa";
-      }
       const iconEl = btnFullscreen ? btnFullscreen.querySelector("svg, i") : null;
       if (iconEl) {
         iconEl.setAttribute("data-lucide", activo ? "minimize-2" : "maximize-2");
@@ -460,13 +502,13 @@
             await document.exitFullscreen();
           }
         } catch (_err) {
-          document.body.classList.toggle("pos-fullscreen");
+          window.StockBarrio.showToast("Usa F11 para pantalla completa", "warn");
         }
       });
     }
     document.addEventListener("fullscreenchange", sincronizarFullscreenUI);
 
-    // Eventos del buscador y lector USB
+    // Buscador y lector USB
     searchInput.addEventListener("input", renderProductos);
     searchInput.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
@@ -493,7 +535,7 @@
       abrirModalCantidad(prod);
     });
 
-    // Eventos modal de cantidad
+    // Modal cantidad
     cantInput.addEventListener("input", actualizarSubtotalModal);
     cantPresets.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-preset]");
@@ -512,7 +554,7 @@
       if (e.target === modalCantidad) cerrarModalCantidad();
     });
 
-    // Edicion directa en carrito
+    // Carrito inline
     cartItemsEl.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-qty-op]");
       if (!btn) return;
@@ -579,12 +621,13 @@
       searchInput.focus();
     });
 
-    // Pestanas e historial
+    // Pestanas rail
     tabMeson.addEventListener("click", () => cambiarTab("meson"));
     tabHistorial.addEventListener("click", () => cambiarTab("historial"));
+    document.getElementById("btn-volver-meson").addEventListener("click", () => cambiarTab("meson"));
     document.getElementById("btn-refrescar-historial").addEventListener("click", cargarHistorial);
 
-    // Modal Atajos
+    // Modal atajos
     function abrirModalAtajos() { modalAtajos.classList.add("open"); }
     function cerrarModalAtajos() {
       modalAtajos.classList.remove("open");
@@ -597,7 +640,7 @@
       if (e.target === modalAtajos) cerrarModalAtajos();
     });
 
-    // Modal Abrir Caja
+    // Modal abrir caja
     function abrirModalCaja() {
       fondoInicialInput.value = "0";
       modalCaja.classList.add("open");
@@ -609,7 +652,7 @@
       searchInput.focus();
     }
 
-    document.getElementById("btn-abrir-caja-banner").addEventListener("click", abrirModalCaja);
+    btnAbrirCaja.addEventListener("click", abrirModalCaja);
     document.getElementById("cerrar-modal-caja").addEventListener("click", cerrarModalCaja);
     document.getElementById("cancelar-modal-caja").addEventListener("click", cerrarModalCaja);
     modalCaja.addEventListener("click", (e) => { if (e.target === modalCaja) cerrarModalCaja(); });
@@ -630,7 +673,7 @@
       }
     });
 
-    // Modal Anular Venta
+    // Modal anular venta
     function cerrarModalAnular() {
       ventaAAnular = null;
       modalAnular.classList.remove("open");
@@ -666,7 +709,7 @@
       }
     });
 
-    // Atajos globales de teclado
+    // Atajos globales
     document.addEventListener("keydown", (e) => {
       if (e.key === "F1") {
         e.preventDefault();
@@ -742,6 +785,8 @@
       }
     });
 
+    actualizarRelojTicket();
+    setInterval(actualizarRelojTicket, 30000);
     cargarEstadoInicial();
     searchInput.focus();
   });

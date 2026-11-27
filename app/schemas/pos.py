@@ -25,6 +25,7 @@ class ProductoPosPublico(BaseModel):
     id: int
     codigo_barras: str | None = None
     nombre: str
+    categoria_nombre: str | None = None
     unidad: str
     precio_venta: int
     stock_actual: float

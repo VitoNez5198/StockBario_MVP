@@ -72,9 +72,13 @@ def listar_productos_pos(
     almacen_id: int,
     q: str | None = None,
 ) -> list[ProductoPosPublico]:
-    stmt = select(Producto).where(
-        Producto.almacen_id == almacen_id,
-        Producto.activo.is_(True),
+    stmt = (
+        select(Producto)
+        .options(joinedload(Producto.categoria))
+        .where(
+            Producto.almacen_id == almacen_id,
+            Producto.activo.is_(True),
+        )
     )
     if q and q.strip():
         termino = f"%{q.strip()}%"
@@ -94,6 +98,7 @@ def listar_productos_pos(
                 id=p.id,
                 codigo_barras=p.codigo_barras,
                 nombre=p.nombre,
+                categoria_nombre=p.categoria.nombre if p.categoria else "General",
                 unidad=p.unidad,
                 precio_venta=p.precio_venta,
                 stock_actual=float(p.stock_actual),
